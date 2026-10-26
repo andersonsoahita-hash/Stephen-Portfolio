@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><meta name="theme-color" content="#071a33">
+<title>Suivi alternance</title>
+<style>
+:root{--bg:#071a33;--card:#10294a;--line:rgba(255,255,255,.12);--gold:#c9a45c;--tx:#eef2fa;--mut:#9fb0cb;--ok:#7fd49a;--bad:#ff9d8f;color-scheme:dark}
+*{box-sizing:border-box}html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.5 Inter,system-ui,-apple-system,Segoe UI,sans-serif}
+h1,h2,h3{font-family:Georgia,'Playfair Display',serif;margin:0}
+header{position:sticky;top:0;z-index:5;background:rgba(7,26,51,.94);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.top{max-width:1000px;margin:0 auto;padding:12px 16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.top h1{font-size:20px;color:var(--gold);flex:1}
+nav{display:flex;gap:6px;max-width:1000px;margin:0 auto;padding:0 12px 10px;overflow-x:auto}
+nav button{flex:none;padding:9px 14px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--mut);font:inherit;font-size:14px;cursor:pointer}
+nav button.on{background:var(--gold);border-color:var(--gold);color:#0b1d38;font-weight:700}
+main{max-width:1000px;margin:0 auto;padding:18px 16px 80px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:16px}
+.card h3{font-size:19px;margin-bottom:12px}
+.grid{display:grid;gap:12px}.g2{grid-template-columns:1fr 1fr}.g3{grid-template-columns:repeat(3,1fr)}.g4{grid-template-columns:repeat(4,1fr)}
+@media(max-width:640px){.g2,.g3,.g4{grid-template-columns:1fr 1fr}.g2.one{grid-template-columns:1fr}}
+.stat{padding:14px;border-radius:12px;background:rgba(255,255,255,.05);border:1px solid var(--line)}
+.stat b{display:block;font:700 28px Georgia,serif;color:var(--gold);line-height:1.1}.stat span{font-size:13px;color:var(--mut)}
+label{display:flex;flex-direction:column;gap:5px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--gold);font-weight:600}
+input,select,textarea{font:inherit;font-size:16px;color:var(--tx);background:#0a2140;border:1px solid var(--line);border-radius:10px;padding:11px 12px;width:100%;text-transform:none;letter-spacing:0;font-weight:400}
+textarea{min-height:90px;resize:vertical}
+button.b{font:inherit;font-weight:600;padding:11px 18px;border-radius:10px;border:1px solid var(--gold);background:var(--gold);color:#0b1d38;cursor:pointer}
+button.b.o{background:transparent;color:var(--tx);border-color:var(--line)}button.b.r{background:transparent;color:var(--bad);border-color:rgba(255,157,143,.5)}
+button.b.s{padding:7px 12px;font-size:14px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.muted{color:var(--mut);font-size:14px}.err{color:var(--bad)}.ok{color:var(--ok)}
+.item{border-top:1px solid var(--line);padding:14px 0}.item:first-child{border-top:0}
+.item .t{font-weight:700}.pill{display:inline-block;padding:2px 10px;border-radius:999px;font-size:12px;border:1px solid var(--line);color:var(--mut)}
+.pill.Entretien,.pill.confirme{color:var(--ok);border-color:var(--ok)}.pill.Offre{color:#0b1d38;background:var(--gold);border-color:var(--gold)}.pill.Refus,.pill.annule{color:var(--bad);border-color:var(--bad)}
+.sgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(66px,1fr));gap:8px}
+.s{padding:10px 0;border-radius:8px;border:1px solid var(--line);background:rgba(255,255,255,.05);color:#fff;font:inherit;font-size:14px;cursor:pointer}
+.s.pick{background:var(--gold);color:#0b1d38;border-color:var(--gold);font-weight:700}.s.occ{background:rgba(190,50,50,.35);border-color:#be3232}.s.iv{background:rgba(127,212,154,.2);border-color:var(--ok);cursor:default}.s.free{background:rgba(127,212,154,.2);border-color:var(--ok);text-decoration:line-through}
+#bar{position:fixed;left:0;right:0;bottom:0;padding:10px 16px;text-align:center;font-size:14px;background:#0b2a50;border-top:1px solid var(--line);display:none;z-index:9}
+#bar.on{display:block}#bar.bad{background:#4a1d1d;color:#ffd0c8}
+.login{max-width:480px;margin:10vh auto;padding:0 16px}
+details{margin-top:10px}summary{cursor:pointer;color:var(--mut)}
+a{color:var(--gold)}
+</style></head><body>
+<div id="app"></div><div id="bar" role="status"></div>
+<script>
+const PORT='andersonsoahita-hash/Stephen-Portfolio',PFILE='entretiens.json',DATA='andersonsoahita-hash/Suivi_alternance-portfolio',DFILE='data.json';
+const STAT=['À envoyer','Envoyée','Relancée','Entretien','Refus','Offre'];
+const MOIS=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'],JOURS=['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
+const BUF=60;
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+const iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+const today=()=>iso(new Date());
+const frDate=s=>{const d=new Date(s+'T12:00:00');return JOURS[d.getDay()]+' '+d.getDate()+' '+MOIS[d.getMonth()]+(d.getFullYear()!==new Date().getFullYear()?' '+d.getFullYear():'')};
+const mins=t=>{const p=t.split(':');return +p[0]*60+ +p[1]};
+const fmt=m=>String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const endOf=e=>fmt(mins(e.start)+e.len);
+let PP='',TOK='',D={candidatures:[],entretiens:[],blocks:[]},MODE='cloud',TAB='dash',dSha=null,pubSha=null,lastPub='',Q=Promise.resolve(),FILT={q:'',s:''},SHOW=80,DRAFT=null;
+const b64=s=>btoa(unescape(encodeURIComponent(s))),unb64=s=>decodeURIComponent(escape(atob(s.replace(/\n/g,''))));
+const u8=b=>Uint8Array.from(atob(b),c=>c.charCodeAt(0)),tb=a=>btoa(String.fromCharCode(...new Uint8Array(a)));
+async function key(pass,salt){const k=await crypto.subtle.importKey('raw',new TextEncoder().encode(pass),'PBKDF2',false,['deriveKey']);return crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:200000,hash:'SHA-256'},k,{name:'AES-GCM',length:256},false,['encrypt','decrypt'])}
+async function enc(obj){if(!PP)return obj;const salt=crypto.getRandomValues(new Uint8Array(16)),iv=crypto.getRandomValues(new Uint8Array(12));const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},await key(PP,salt),new TextEncoder().encode(JSON.stringify(obj)));return{v:1,salt:tb(salt),iv:tb(iv),ct:tb(ct)}}
+async function dec(o){if(!o.ct)return o;if(!PP)throw new Error('pp');const p=await crypto.subtle.decrypt({name:'AES-GCM',iv:u8(o.iv)},await key(PP,u8(o.salt)),u8(o.ct));return JSON.parse(new TextDecoder().decode(p))}
+const H=()=>({Authorization:'Bearer '+TOK,Accept:'application/vnd.github+json'});
+function getFile(repo,file){return fetch('https://api.github.com/repos/'+repo+'/contents/'+file+'?ref=main&t='+Date.now(),{headers:H()}).then(r=>{if(r.status===404)return null;if(!r.ok)throw new Error(String(r.status));return r.json().then(j=>({data:JSON.parse(unb64(j.content)||'null'),sha:j.sha}))})}
+function putFile(repo,file,obj,sha,msg){const body={message:msg,content:b64(JSON.stringify(obj,null,1)+'\n'),branch:'main'};if(sha)body.sha=sha;
+  return fetch('https://api.github.com/repos/'+repo+'/contents/'+file,{method:'PUT',headers:Object.assign({'Content-Type':'application/json'},H()),body:JSON.stringify(body)}).then(r=>{if(!r.ok){const e=new Error(String(r.status));e.status=r.status;throw e}return r.json()}).then(j=>j.content.sha)}
+function bar(msg,bad){const b=$('#bar');if(!msg){b.className='';return}b.textContent=msg;b.className='on'+(bad?' bad':'')}
+/* ---- publication sur le portfolio ---- */
+const pubList=()=>D.entretiens.filter(e=>e.statut==='confirme').map(e=>({date:e.date,start:e.start,end:endOf(e)})).concat(D.blocks.map(b=>({date:b.date,start:b.start,end:b.end,off:1}))).sort((a,b)=>(a.date+a.start).localeCompare(b.date+b.start));
+function syncAll(){
+  bar('Enregistrement…');
+  const save=MODE==='local'?Promise.resolve().then(()=>{try{localStorage.setItem('suivi_local',JSON.stringify(D))}catch(e){}}):
+    enc(D).then(E=>putFile(DATA,DFILE,E,dSha,'Mise à jour du suivi').then(s=>{dSha=s}).catch(e=>{if(e.status===409||e.status===422)return getFile(DATA,DFILE).then(f=>putFile(DATA,DFILE,E,f&&f.sha,'Mise à jour du suivi')).then(s=>{dSha=s});throw e}));
+  return save.then(()=>{const pl=pubList(),js=JSON.stringify(pl);if(js===lastPub)return;
+    return getFile(PORT,PFILE).then(f=>putFile(PORT,PFILE,pl,f&&f.sha,'Mise à jour des créneaux')).then(()=>{lastPub=js})})
+   .then(()=>bar('Enregistré. Le calendrier public se met à jour en 1 à 2 minutes.'),e=>bar('Échec de l’enregistrement ('+e.message+'). Vos changements restent à l’écran, ré-essayez.',true))
+   .then(()=>setTimeout(()=>{if($('#bar')&&!$('#bar').classList.contains('bad'))bar('')},4500));
+}
+const save=()=>{Q=Q.then(syncAll);return Q};
+/* ---- conflits ---- */
+function conflict(date,start,len,exceptId){
+  const a=mins(start),b=a+len;
+  for(const e of D.entretiens){if(e.statut!=='confirme'||e.id===exceptId||e.date!==date)continue;if(a<mins(endOf(e))+BUF&&b>mins(e.start)-BUF)return 'l’entretien avec '+(e.entreprise||e.nom||'—')+' ('+e.start+' – '+endOf(e)+', avec 1 h de trajet avant et après)'}
+  for(const x of D.blocks){if(x.date===date&&a<mins(x.end)&&b>mins(x.start))return 'un créneau bloqué ('+x.start+' – '+x.end+')'}
+  return '';
+}
+/* ---- connexion ---- */
+function boot(){try{TOK=localStorage.getItem('gh_tok')||sessionStorage.getItem('gh_tok')||'';PP=localStorage.getItem('suivi_pp')||sessionStorage.getItem('suivi_pp')||''}catch(e){}TOK?load():login('')}
+function login(msg){
+  $('#app').innerHTML=`<div class="login"><h1 style="color:var(--gold);margin-bottom:8px">Suivi alternance</h1><p class="muted">Espace privé. Collez votre jeton GitHub pour accéder à vos candidatures et à vos entretiens.</p>
+  <form class="card" id="lf"><label>Jeton GitHub<input type="password" name="t" required autocomplete="off"></label><label style="margin-top:12px">Phrase secrète (facultative)<input type="password" name="p" autocomplete="off"></label><p class="muted">Laissez vide si votre dépôt de données est privé. Sinon, vos données seront chiffrées avec cette phrase, qui ne peut pas être récupérée si vous l’oubliez.</p>
+  <label style="flex-direction:row;align-items:center;gap:8px;text-transform:none;letter-spacing:0;font-weight:400;color:var(--tx)"><input type="checkbox" name="k" checked style="width:auto"> Rester connecté sur cet appareil</label>
+  <p class="err" id="lm">${esc(msg)}</p><button class="b" type="submit">Se connecter</button>
+  <details><summary>Créer le jeton (une seule fois)</summary><ol class="muted"><li>GitHub, votre photo, Settings, Developer settings, Personal access tokens, Fine-grained tokens.</li><li>Repository access : « Only select repositories » puis Stephen-Portfolio et Suivi_alternance-portfolio.</li><li>Permissions, Repository permissions, Contents : Read and write.</li><li>Générez et collez le jeton ici.</li></ol></details></form></div>`;
+  $('#lf').onsubmit=e=>{e.preventDefault();TOK=e.target.elements.t.value.trim();PP=e.target.elements.p.value;try{const st=e.target.elements.k.checked?localStorage:sessionStorage;st.setItem('gh_tok',TOK);if(PP)st.setItem('suivi_pp',PP)}catch(x){}load()};
+}
+function logout(){try{['gh_tok','suivi_pp'].forEach(k=>{localStorage.removeItem(k);sessionStorage.removeItem(k)})}catch(e){}TOK='';PP='';login('')}
+function load(){
+  $('#app').innerHTML='<p class="login muted">Chargement…</p>';
+  Promise.all([getFile(PORT,PFILE),getFile(DATA,DFILE)]).then(([p,d])=>{
+    D={candidatures:[],entretiens:[],blocks:[]};MODE='cloud';
+    const fin=()=>{pubSha=p&&p.sha;merge(p&&p.data||[]);lastPub=JSON.stringify(p&&p.data||[]);draw()};
+    if(d&&d.data){dSha=d.sha;return dec(d.data).then(o=>{D=Object.assign(D,o);fin()},()=>{try{['suivi_pp'].forEach(k=>{localStorage.removeItem(k);sessionStorage.removeItem(k)})}catch(x){}PP='';login('Phrase secrète incorrecte.')})}
+    fin();
+  }).catch(e=>{try{['gh_tok','suivi_pp'].forEach(k=>{localStorage.removeItem(k);sessionStorage.removeItem(k)})}catch(x){}login('Connexion refusée ('+e.message+'). Vérifiez le jeton et ses droits.')});
+}
+function merge(pub){ /* reprend les entrées publiées que le suivi ne connaît pas encore */
+  pub.forEach(x=>{
+    const has=x.off?D.blocks.some(b=>b.date===x.date&&b.start===x.start&&b.end===x.end):D.entretiens.some(e=>e.statut==='confirme'&&e.date===x.date&&e.start===x.start);
+    if(has)return;
+    if(x.off)D.blocks.push({date:x.date,start:x.start,end:x.end});
+    else D.entretiens.push({id:uid(),entreprise:'(à compléter)',nom:'',email:'',date:x.date,start:x.start,len:mins(x.end)-mins(x.start),format:'',lieu:'',statut:'confirme'});
+  });
+}
+/* ---- vues ---- */
+function draw(){
+  const tabs=[['dash','Tableau de bord'],['cand','Candidatures'],['ent','Entretiens'],['slots','Créneaux']];
+  $('#app').innerHTML=`<header><div class="top"><h1>Suivi alternance</h1><button class="b o s" id="lo">Se déconnecter</button></div><nav>${tabs.map(t=>`<button data-t="${t[0]}" class="${TAB===t[0]?'on':''}">${t[1]}</button>`).join('')}</nav></header><main id="m"></main>`;
+  $$('nav button').forEach(b=>b.onclick=()=>{TAB=b.dataset.t;DRAFT=null;draw()});$('#lo').onclick=logout;
+  ({dash:vDash,cand:vCand,ent:vEnt,slots:vSlots})[TAB]();
+}
+function vDash(){
+  const c=D.candidatures,n=s=>c.filter(x=>x.statut===s).length,up=D.entretiens.filter(e=>e.statut==='confirme'&&e.date>=today()).sort((a,b)=>(a.date+a.start).localeCompare(b.date+b.start));
+  const rel=c.filter(x=>x.relance&&x.relance<=today()&&['Envoyée','Relancée'].includes(x.statut));
+  $('#m').innerHTML=`<div class="grid g4" style="margin-bottom:16px"><div class="stat"><b>${c.length}</b><span>candidatures</span></div><div class="stat"><b>${n('Envoyée')+n('Relancée')}</b><span>en attente de réponse</span></div><div class="stat"><b>${up.length}</b><span>entretien${up.length>1?'s':''} à venir</span></div><div class="stat"><b>${n('Offre')}</b><span>offre${n('Offre')>1?'s':''}</span></div></div>
+  <div class="card"><h3>Prochains entretiens</h3>${up.slice(0,4).map(e=>`<div class="item"><span class="t">${frDate(e.date)}, ${e.start} – ${endOf(e)}</span><div class="muted">${esc(e.entreprise)}${e.nom?' · '+esc(e.nom):''}${e.format?' · '+esc(e.format):''}</div></div>`).join('')||'<p class="muted">Aucun entretien prévu.</p>'}
+  <div class="row" style="margin-top:12px"><button class="b" id="newent">Ajouter un entretien reçu par e-mail</button></div></div>
+  <div class="card"><h3>Relances à faire</h3>${rel.slice(0,8).map(x=>`<div class="item"><span class="t">${esc(x.entreprise)}</span> <span class="muted">${esc(x.poste||'')} · relance prévue le ${frDate(x.relance)}</span></div>`).join('')||'<p class="muted">Aucune relance en retard.</p>'}</div>`;
+  $('#newent').onclick=()=>{TAB='ent';DRAFT={};draw()};
+}
+function vCand(){
+  const list=D.candidatures.filter(x=>(!FILT.s||x.statut===FILT.s)&&(!FILT.q||(x.entreprise+' '+x.poste+' '+(x.contact||'')).toLowerCase().includes(FILT.q.toLowerCase())));
+  $('#m').innerHTML=`<div class="card"><h3>Ajouter une candidature</h3><form id="cf" class="grid g2 one"><label>Entreprise<input name="entreprise" required></label><label>Poste<input name="poste"></label><label>Contact<input name="contact" placeholder="Nom, e-mail"></label><label>Lien de l’offre<input name="lien" inputmode="url"></label><label>Envoyée le<input name="envoye" type="date" value="${today()}"></label><label>Relance le<input name="relance" type="date"></label><label>Statut<select name="statut">${STAT.map((s,i)=>`<option${i===1?' selected':''}>${s}</option>`).join('')}</select></label><label>Notes<input name="notes"></label><div class="row"><button class="b" type="submit">Ajouter</button></div></form>
+  <details><summary>Ajouter plusieurs candidatures d’un coup</summary><p class="muted">Une ligne par candidature : Entreprise ; Poste ; Lien (le poste et le lien sont facultatifs).</p><textarea id="bulk" placeholder="Société A ; Community manager ; https://…"></textarea><div class="row" style="margin-top:8px"><button class="b o" id="bulkb" type="button">Importer</button></div></details></div>
+  <div class="card"><div class="grid g2 one" style="margin-bottom:8px"><label>Rechercher<input id="fq" value="${esc(FILT.q)}" placeholder="Entreprise, poste…"></label><label>Statut<select id="fs"><option value="">Tous</option>${STAT.map(s=>`<option${FILT.s===s?' selected':''}>${s}</option>`).join('')}</select></label></div>
+  <p class="muted">${list.length} candidature${list.length>1?'s':''}</p><div id="cl">${list.slice(0,SHOW).map(x=>`<div class="item" data-id="${x.id}"><div class="row"><span class="t" style="flex:1">${esc(x.entreprise)}</span><span class="pill ${x.statut}">${x.statut}</span></div><div class="muted">${esc(x.poste||'')}${x.envoye?' · envoyée le '+frDate(x.envoye):''}${x.relance?' · relance le '+frDate(x.relance):''}</div>${x.contact?`<div class="muted">${esc(x.contact)}</div>`:''}${x.notes?`<div class="muted">${esc(x.notes)}</div>`:''}
+  <div class="row" style="margin-top:8px"><select data-act="st" style="width:auto">${STAT.map(s=>`<option${x.statut===s?' selected':''}>${s}</option>`).join('')}</select>${x.lien?`<a href="${esc(x.lien)}" target="_blank" rel="noopener" class="muted">Offre</a>`:''}<button class="b r s" data-act="del">Supprimer</button></div></div>`).join('')}</div>${list.length>SHOW?'<div class="row" style="margin-top:10px"><button class="b o" id="more">Afficher la suite</button></div>':''}</div>`;
+  $('#cf').onsubmit=e=>{e.preventDefault();const f=Object.fromEntries(new FormData(e.target));D.candidatures.unshift(Object.assign({id:uid()},f));save();draw()};
+  $('#bulkb').onclick=()=>{const L=$('#bulk').value.split('\n').map(s=>s.trim()).filter(Boolean);L.forEach(l=>{const p=l.split(/\s*;\s*/);D.candidatures.unshift({id:uid(),entreprise:p[0],poste:p[1]||'',lien:p[2]||'',envoye:today(),statut:'Envoyée'})});if(L.length){save();draw()}};
+  $('#fq').oninput=e=>{FILT.q=e.target.value;SHOW=80;const pos=e.target.selectionStart;vCand();const q=$('#fq');q.focus();q.setSelectionRange(pos,pos)};$('#fs').onchange=e=>{FILT.s=e.target.value;SHOW=80;vCand()};
+  if($('#more'))$('#more').onclick=()=>{SHOW+=80;vCand()};
+  $('#cl').addEventListener('change',e=>{const it=e.target.closest('.item');if(!it||e.target.dataset.act!=='st')return;D.candidatures.find(x=>x.id===it.dataset.id).statut=e.target.value;save();vCand()});
+  $('#cl').addEventListener('click',e=>{const it=e.target.closest('.item');if(!it||e.target.dataset.act!=='del')return;D.candidatures=D.candidatures.filter(x=>x.id!==it.dataset.id);save();vCand()});
+}
+function parseMail(t){
+  const g=k=>{const m=new RegExp('(?:^|\\n)\\s*'+k+'\\s*[:\\t ]\\s*([^\\n]+)','i').exec(t);return m?m[1].trim():''};
+  const o={nom:g('name'),email:g('email'),entreprise:g('organisation'),format:g('format'),lieu:g('lieu_ou_lien'),duree:g('duree'),prop:g('proposition')};
+  const m=/(\d{1,2})\s+([a-zéèêûîôàç]+)\s+(\d{4})\s+à\s+(\d{1,2}):(\d{2})/i.exec(o.prop||t);
+  if(m){const mi=MOIS.indexOf(m[2].toLowerCase());if(mi>=0){o.date=m[3]+'-'+String(mi+1).padStart(2,'0')+'-'+String(+m[1]).padStart(2,'0');o.start=String(+m[4]).padStart(2,'0')+':'+m[5]}}
+  const l=/(\d+)\s*(h|min)/i.exec(o.duree||'');o.len=l?(l[2].toLowerCase()==='h'?+l[1]*60:+l[1]):60;if(/1\s*h\s*30/i.test(o.duree))o.len=90;
+  return o;
+}
+function slotOpts(sel){let h='';for(let m=420;m<=1200;m+=30)h+=`<option${fmt(m)===sel?' selected':''}>${fmt(m)}</option>`;return h}
+function entForm(d){
+  const len=d.len||60;
+  return `<form id="ef" class="grid g2 one"><label>Entreprise<input name="entreprise" value="${esc(d.entreprise||'')}" required></label><label>Nom et prénom<input name="nom" value="${esc(d.nom||'')}"></label><label>E-mail<input name="email" type="email" value="${esc(d.email||'')}"></label><label>Format<select name="format">${['Visioconférence','Téléphone','Sur place'].map(f=>`<option${d.format===f?' selected':''}>${f}</option>`).join('')}</select></label><label>Lieu, lien ou numéro<input name="lieu" value="${esc(d.lieu||'')}"></label>
+  <div class="grid g3" style="grid-template-columns:2fr 1fr 1fr"><label>Jour<input name="date" type="date" value="${d.date||''}" required></label><label>Heure<select name="start">${slotOpts(d.start||'10:00')}</select></label><label>Durée<select name="len">${[30,45,60,90,120].map(v=>`<option value="${v}"${v===len?' selected':''}>${v>=60?(v/60)+' h':v+' min'}</option>`).join('')}</select></label></div>
+  <p class="err" id="em" style="margin:0"></p><div class="row"><button class="b" type="submit">Valider et bloquer le créneau</button><button class="b o" type="button" id="ecancel">Fermer</button></div></form>`;
+}
+function vEnt(){
+  const all=D.entretiens.slice().sort((a,b)=>(a.date+a.start).localeCompare(b.date+b.start)),t=today();
+  const up=all.filter(e=>e.statut==='confirme'&&e.date>=t),past=all.filter(e=>e.statut==='confirme'&&e.date<t),can=all.filter(e=>e.statut==='annule');
+  const card=e=>`<div class="item" data-id="${e.id}"><div class="row"><span class="t" style="flex:1">${frDate(e.date)}, ${e.start} – ${endOf(e)}</span><span class="pill ${e.statut}">${e.statut==='annule'?'annulé':'confirmé'}</span></div>
+   <div>${esc(e.entreprise)}${e.nom?' · '+esc(e.nom):''}</div><div class="muted">${esc(e.format||'')}${e.lieu?' · '+esc(e.lieu):''}${e.email?' · '+esc(e.email):''}</div>
+   <div class="row" style="margin-top:8px">${e.statut==='confirme'?`<button class="b o s" data-act="mv">Déplacer</button><button class="b r s" data-act="cx">Annuler</button>`:`<button class="b o s" data-act="rs">Rétablir</button><button class="b r s" data-act="rm">Supprimer</button>`}${e.email?`<a class="muted" data-act="ml" href="#">Écrire à la personne</a>`:''}</div><div class="mvbox"></div></div>`;
+  $('#m').innerHTML=`<div class="card"><h3>Ajouter un entretien</h3>${DRAFT?(DRAFT.paste===undefined?'':'')+entForm(DRAFT):`<p class="muted">Collez ici le texte du mail de réservation (celui reçu de FormSubmit) : tout est rempli pour vous.</p><textarea id="paste" placeholder="Collez le mail ici"></textarea><div class="row" style="margin-top:8px"><button class="b" id="pp">Remplir depuis le mail</button><button class="b o" id="pm">Saisir à la main</button></div>`}</div>
+  <div class="card"><h3>À venir (${up.length})</h3>${up.map(card).join('')||'<p class="muted">Aucun entretien.</p>'}</div>
+  ${past.length?`<div class="card"><h3>Passés (${past.length})</h3>${past.slice(-10).reverse().map(card).join('')}</div>`:''}${can.length?`<div class="card"><h3>Annulés (${can.length})</h3>${can.map(card).join('')}</div>`:''}`;
+  if(DRAFT){$('#ecancel').onclick=()=>{DRAFT=null;vEnt()};$('#ef').onsubmit=e=>{e.preventDefault();const f=Object.fromEntries(new FormData(e.target));f.len=+f.len;const c=conflict(f.date,f.start,f.len);if(c){$('#em').textContent='Ce créneau chevauche '+c+'. Choisissez une autre heure.';return}
+    D.entretiens.push(Object.assign({id:uid(),statut:'confirme'},f));DRAFT=null;save();vEnt()}}
+  else{$('#pp').onclick=()=>{const o=parseMail($('#paste').value);DRAFT={entreprise:o.entreprise,nom:o.nom,email:o.email,format:o.format,lieu:/envoy|à vous/i.test(o.lieu)?'':o.lieu,date:o.date,start:o.start,len:o.len};vEnt()};$('#pm').onclick=()=>{DRAFT={};vEnt()}}
+  $$('.item[data-id]').forEach(it=>it.addEventListener('click',ev=>{const a=ev.target.dataset.act;if(!a)return;const e=D.entretiens.find(x=>x.id===it.dataset.id);
+    if(a==='ml'){ev.preventDefault();const sub=e.statut==='annule'?'Annulation de notre entretien':'Notre entretien';location.href='mailto:'+e.email+'?subject='+encodeURIComponent(sub)+'&body='+encodeURIComponent('Bonjour,\n\n'+(e.statut==='annule'?'Je suis contraint d’annuler notre entretien du '+frDate(e.date)+' à '+e.start+'. Je vous propose de convenir d’un autre créneau.':'Concernant notre entretien du '+frDate(e.date)+' à '+e.start+' :')+'\n\nCordialement,\nStephen Anderson Soahita');return}
+    if(a==='cx'){e.statut='annule';save();vEnt()}
+    if(a==='rm'){D.entretiens=D.entretiens.filter(x=>x!==e);save();vEnt()}
+    if(a==='rs'){const c=conflict(e.date,e.start,e.len,e.id);if(c){bar('Impossible de rétablir : le créneau chevauche '+c+'.',true);return}e.statut='confirme';save();vEnt()}
+    if(a==='mv'){const bx=it.querySelector('.mvbox');bx.innerHTML=`<form class="grid g3" style="grid-template-columns:2fr 1fr 1fr;margin-top:10px"><label>Nouveau jour<input name="date" type="date" value="${e.date}" required></label><label>Heure<select name="start">${slotOpts(e.start)}</select></label><label>Durée<select name="len">${[30,45,60,90,120].map(v=>`<option value="${v}"${v===e.len?' selected':''}>${v>=60?(v/60)+' h':v+' min'}</option>`).join('')}</select></label><p class="err" style="grid-column:1/-1;margin:0"></p><div class="row" style="grid-column:1/-1"><button class="b s" type="submit">Enregistrer le déplacement</button></div></form>`;
+      bx.querySelector('form').onsubmit=s=>{s.preventDefault();const f=Object.fromEntries(new FormData(s.target));f.len=+f.len;const c=conflict(f.date,f.start,f.len,e.id);if(c){bx.querySelector('.err').textContent='Ce créneau chevauche '+c+'.';return}Object.assign(e,f);save();vEnt()}}}));
+}
+function vSlots(){
+  const sel=new Set(),rem=new Set();let day=window.__day||today();
+  $('#m').innerHTML=`<form class="card" id="sf"><h3>Bloquer des créneaux</h3><label>Jour<input type="date" name="d" value="${day}" required></label><div class="sgrid" id="sg" style="margin:12px 0"></div><p class="muted">Touchez les créneaux à rendre indisponibles (dorés). Touchez un créneau rouge pour le libérer. Les entretiens (verts) se gèrent dans l’onglet Entretiens, avec 1 h de trajet avant et après.</p><p class="err" id="sm"></p><button class="b" type="submit">Enregistrer</button></form>`;
+  const dr=()=>{const d=$('#sf').elements.d.value;window.__day=d;let h='';for(let m=480;m<1200;m+=30){const t=fmt(m);
+    const iv=D.entretiens.find(e=>e.statut==='confirme'&&e.date===d&&m<mins(endOf(e))&&m+30>mins(e.start));
+    const bi=D.blocks.findIndex(x=>x.date===d&&m<mins(x.end)&&m+30>mins(x.start));
+    h+=iv?`<button type="button" class="s iv" disabled>${t}</button>`:bi>=0?`<button type="button" class="s ${rem.has(bi)?'free':'occ'}" data-t="${t}" data-i="${bi}">${t}</button>`:`<button type="button" class="s${sel.has(t)?' pick':''}" data-t="${t}" data-i="-1">${t}</button>`}
+    $('#sg').innerHTML=h};
+  $('#sg').onclick=e=>{const b=e.target.closest('button.s');if(!b||b.disabled)return;const i=+b.dataset.i;if(i>=0)rem.has(i)?rem.delete(i):rem.add(i);else sel.has(b.dataset.t)?sel.delete(b.dataset.t):sel.add(b.dataset.t);dr()};
+  $('#sf').elements.d.onchange=()=>{sel.clear();rem.clear();dr()};
+  $('#sf').onsubmit=e=>{e.preventDefault();const d=e.target.elements.d.value;if(!sel.size&&!rem.size){$('#sm').textContent='Touchez au moins un créneau.';return}
+    D.blocks=D.blocks.filter((x,i)=>!rem.has(i));const ts=[...sel].sort();let k=0;while(k<ts.length){let s=mins(ts[k]),en=s+30;while(k+1<ts.length&&mins(ts[k+1])===en){en+=30;k++}D.blocks.push({date:d,start:fmt(s),end:fmt(en)});k++}
+    save();vSlots()};
+  dr();
+}
+boot();
+</script></body></html>
