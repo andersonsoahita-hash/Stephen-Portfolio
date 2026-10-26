@@ -369,6 +369,12 @@ footer .fchip div{display:flex;flex-direction:column;gap:2px}
 .addban b{color:#9fe3b0}.addban span{color:#fff;flex:1}
 @media(max-width:560px){.dash{grid-template-columns:1fr}}
 .secret{display:inline-block;width:9px;height:9px;margin-left:10px;vertical-align:middle;background:currentColor;opacity:.12;border-radius:1px}.secret:hover{opacity:.5}
+.sgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:8px}
+.sgrid .s{padding:10px 0;border-radius:8px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.05);color:#fff;font-size:14px;cursor:pointer}
+.sgrid .s.pick{background:var(--gold);color:#0b1d38;border-color:var(--gold);font-weight:700}
+.sgrid .s.occ{background:rgba(190,50,50,.35);border-color:#be3232}
+.sgrid .s.free{background:rgba(159,227,176,.2);border-color:#9fe3b0;text-decoration:line-through}
+.chk{flex-direction:row!important;align-items:center;text-transform:none!important;letter-spacing:0!important;font-weight:400!important;color:#d6dcea!important;font-size:14px!important}
 .k.bz{background:#fff;border-radius:50%;width:9px;height:9px;box-shadow:0 0 0 2px rgba(7,26,51,.8)}
 .howto{max-width:760px;margin:0 0 26px;padding:18px 22px;border-radius:12px;background:rgba(201,164,92,.1);border:1px solid rgba(201,164,92,.35);line-height:1.55;color:#e4e9f5}
 .howto b{display:block;color:var(--gold);margin-bottom:6px;letter-spacing:.04em}
@@ -674,27 +680,27 @@ function introInit(){
 }
 
 const GH_REPO='andersonsoahita-hash/Stephen-Portfolio',GH_FILE='entretiens.json';
-let ADD=null;
+let ADD=null,ADATE='';
 function adminPage(){
   const m=/#\/admin\/add\/(\d{4}-\d{2}-\d{2})\/(\d{2}:\d{2})\/(\d+)/.exec(location.hash);ADD=m?{date:m[1],start:m[2],len:+m[3]}:null;
   app.innerHTML=`<div class="page"><div class="apage contactp"><div class="crumbs"><a href="#/">Accueil</a> · Gestion des entretiens</div>
   <div class="kick">Espace privé</div><h1>Mon tableau de bord</h1>
   <p class="intro">Ajoutez ici vos entretiens ou vos indisponibilités : ils apparaissent comme créneaux indisponibles dans le calendrier public, sans motif ni nom de société. Les entretiens ne peuvent se placer que sur vos périodes en entreprise.</p>
   <section class="adm" id="adm"></section></div>${foot()}</div>`;
-  let tok='';try{tok=sessionStorage.getItem('gh_tok')||''}catch(e){}
+  let tok='';try{tok=localStorage.getItem('gh_tok')||sessionStorage.getItem('gh_tok')||''}catch(e){}
   tok?adminLoad(tok):adminLogin('');
 }
 function adminLogin(msg){
   $('#adm').innerHTML=`<form class="cform" id="alog"><h3>Connexion</h3>
-   <p class="fnote">Collez votre jeton GitHub. Il reste dans cet onglet uniquement et disparaît à la fermeture.</p>
+   <p class="fnote">Collez votre jeton GitHub. Il reste sur cet appareil si vous cochez la case, pour ne plus avoir à le coller. Ne cochez pas sur un ordinateur partagé.</p>
    <label>Jeton GitHub<input type="password" name="tok" autocomplete="current-password" required></label>
-   <button class="btn gold" type="submit">Se connecter</button><p id="ast" class="err">${msg||''}</p>
+   <label class="chk"><input type="checkbox" name="keep" checked> Rester connecté sur cet appareil</label><button class="btn gold" type="submit">Se connecter</button><p id="ast" class="err">${msg||''}</p>
    <details class="fnote"><summary>Créer le jeton (une seule fois)</summary><ol>
     <li>GitHub → votre photo → Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token.</li>
     <li>Repository access : « Only select repositories » → Stephen-Portfolio.</li>
     <li>Permissions → Repository permissions → Contents : Read and write.</li>
     <li>Générez, copiez le jeton et collez-le ici.</li></ol></details></form>`;
-  $('#alog').addEventListener('submit',e=>{e.preventDefault();const t=e.target.elements.tok.value.trim();if(!t)return;try{sessionStorage.setItem('gh_tok',t)}catch(x){}adminLoad(t)});
+  $('#alog').addEventListener('submit',e=>{e.preventDefault();const t=e.target.elements.tok.value.trim();if(!t)return;try{(e.target.elements.keep.checked?localStorage:sessionStorage).setItem('gh_tok',t)}catch(x){}adminLoad(t)});
 }
 function ghHead(tok){return{'Authorization':'Bearer '+tok,'Accept':'application/vnd.github+json'}}
 function adminLoad(tok){
@@ -703,7 +709,7 @@ function adminLoad(tok){
     if(r.status===404)return{list:[],sha:null};
     if(!r.ok)throw new Error(String(r.status));
     return r.json().then(j=>({list:JSON.parse(atob(j.content.replace(/\n/g,''))||'[]'),sha:j.sha}));
-  }).then(s=>adminDraw(tok,s.list,s.sha)).catch(e=>{try{sessionStorage.removeItem('gh_tok')}catch(x){}adminLogin('Connexion refusée ('+e.message+'). Vérifiez le jeton et ses droits sur le dépôt.')});
+  }).then(s=>adminDraw(tok,s.list,s.sha)).catch(e=>{try{sessionStorage.removeItem('gh_tok');localStorage.removeItem('gh_tok')}catch(x){}adminLogin('Connexion refusée ('+e.message+'). Vérifiez le jeton et ses droits sur le dépôt.')});
 }
 function adminDraw(tok,list,sha,msg,ok){
   list.sort((a,b)=>(a.date+a.start).localeCompare(b.date+b.start));
@@ -713,7 +719,8 @@ function adminDraw(tok,list,sha,msg,ok){
   const up=list.filter(x=>x.date>=today&&!x.off),nx=up[0];
   const dash=`<div class="dash"><div><b>${up.length}</b><span>entretien${up.length>1?'s':''} à venir</span></div><div><b>${nx?frDate(nx.date).replace(/ 20\d\d$/,''):'—'}</b><span>${nx?'prochain, à '+nx.start:'aucun prévu'}</span></div><div><b>${list.filter(x=>x.off&&x.date>=today).length}</b><span>indisponibilité${list.filter(x=>x.off&&x.date>=today).length>1?'s':''}</span></div></div>`;
   const ban=ADD?`<div class="addban"><b>Nouvelle réservation reçue</b><span>${frDate(ADD.date)} · ${ADD.start}, ${ADD.len} min</span><button class="btn gold" type="button" id="aquick">Ajouter à mes entretiens</button></div>`:'';
-  $('#adm').innerHTML=ban+dash+`<div class="admgrid"><div class="cform"><h3>Entretiens prévus</h3><ul class="alist">${rows}</ul></div>
+  const blk=`<form class="cform" id="ablk" style="margin-bottom:22px"><h3>Bloquer des créneaux</h3><label>Jour<input type="date" name="d" value="${ADATE||today}" required></label><div class="sgrid" id="sg"></div><p class="fnote">Touchez les créneaux à rendre occupés (en doré). Touchez un créneau déjà occupé (en rouge) pour le libérer. Puis enregistrez.</p><button class="btn gold" type="submit">Enregistrer</button></form>`;
+  $('#adm').innerHTML=ban+dash+blk+`<div class="admgrid"><div class="cform"><h3>Entretiens prévus</h3><ul class="alist">${rows}</ul></div>
    <form class="cform" id="aadd"><h3>Ajouter</h3><label>Type<select name="kind"><option value="i">Entretien</option><option value="o">Indisponible (sans motif)</option></select></label>
     <label>Jour<input type="date" name="date" required min="${today}"></label>
     <div class="row3"><label>Début<select name="start">${slots.map(s=>`<option${s==='10:00'?' selected':''}>${s}</option>`).join('')}</select></label>
@@ -722,8 +729,21 @@ function adminDraw(tok,list,sha,msg,ok){
     <p id="ast" class="${ok?'ok':'err'}">${msg||''}</p>
     <p class="fnote">Le site public se met à jour en une à deux minutes après chaque modification.</p>
     <button type="button" class="btn ghost" id="aout">Se déconnecter</button></form></div>`;
+  const sel=new Set(),rem=new Set();
+  const drawSG=()=>{const d=$('#ablk').elements.d.value;ADATE=d;let h='';
+    for(let m=480;m<1200;m+=30){const t=fmt(m),i=list.findIndex(x=>x.date===d&&m<mins(x.end)&&m+30>mins(x.start));
+      const cls=i>=0?(rem.has(i)?'s free':'s occ'):(sel.has(t)?'s pick':'s');h+=`<button type="button" class="${cls}" data-t="${t}" data-i="${i}">${t}</button>`}
+    $('#sg').innerHTML=h};
+  $('#sg').addEventListener('click',e=>{const b=e.target.closest('button.s');if(!b)return;const i=+b.dataset.i,t=b.dataset.t;
+    if(i>=0){rem.has(i)?rem.delete(i):rem.add(i)}else{sel.has(t)?sel.delete(t):sel.add(t)}drawSG()});
+  $('#ablk').elements.d.addEventListener('change',()=>{sel.clear();rem.clear();drawSG()});
+  $('#ablk').addEventListener('submit',e=>{e.preventDefault();const d=e.target.elements.d.value;if(!d||(!sel.size&&!rem.size)){$('#ast').className='err';$('#ast').textContent='Touchez au moins un créneau.';return}
+    let n=list.filter((x,i)=>!rem.has(i));const ts=[...sel].sort();let k=0;
+    while(k<ts.length){let s=mins(ts[k]),en=s+30;while(k+1<ts.length&&mins(ts[k+1])===en){en+=30;k++}n.push({date:d,start:fmt(s),end:fmt(en),off:1});k++}
+    adminSave(tok,n,sha,'Calendrier mis à jour.')});
+  drawSG();
   if(ADD){const q=$('#aquick');q.onclick=()=>{const f=$('#aadd');f.elements.kind.value='i';f.elements.date.value=ADD.date;f.elements.start.value=ADD.start;f.elements.len.value=String(ADD.len);ADD=null;f.dispatchEvent(new Event('submit',{cancelable:true,bubbles:true}))}}
-  $('#aout').onclick=()=>{try{sessionStorage.removeItem('gh_tok')}catch(e){}adminLogin('')};
+  $('#aout').onclick=()=>{try{sessionStorage.removeItem('gh_tok');localStorage.removeItem('gh_tok')}catch(e){}adminLogin('')};
   document.querySelectorAll('.alist button').forEach(b=>b.onclick=()=>{const n=list.slice();n.splice(+b.dataset.i,1);adminSave(tok,n,sha,'Entretien supprimé.')});
   $('#aadd').addEventListener('submit',e=>{
     e.preventDefault();const f=e.target,d=f.elements.date.value,s=f.elements.start.value,len=+f.elements.len.value;
@@ -752,12 +772,12 @@ const MOIS=['janvier','février','mars','avril','mai','juin','juillet','août','
 const JOURS=['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
 const iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 const frDate=s=>{const d=new Date(s+'T12:00:00');return JOURS[d.getDay()]+' '+d.getDate()+' '+MOIS[d.getMonth()]+' '+d.getFullYear()};
-let calY,calM,calSel='',BUSY=[];
+let calY,calM,calSel='',BUSY=[],MINE=[];
 const mins=t=>{const p=t.split(':');return +p[0]*60+ +p[1]};
 const durMin=s=>s==='30 min'?30:s==='45 min'?45:60;
 const full=d=>BUSY.some(x=>x.date===d&&mins(x.start)<=480&&mins(x.end)>=1170);
 const clash=(d,s,len)=>BUSY.some(x=>x.date===d&&mins(s)<mins(x.end)&&mins(s)+len>mins(x.start));
-function loadBusy(){if(typeof fetch!=='function')return Promise.resolve();return fetch('entretiens.json?t='+Date.now()).then(r=>r.ok?r.json():[]).then(a=>{BUSY=Array.isArray(a)?a.filter(x=>x&&x.date&&x.start&&x.end):[]}).catch(()=>{BUSY=[]})}
+function loadBusy(){if(typeof fetch!=='function')return Promise.resolve();return fetch('entretiens.json?t='+Date.now()).then(r=>r.ok?r.json():[]).then(a=>{BUSY=(Array.isArray(a)?a.filter(x=>x&&x.date&&x.start&&x.end):[]).concat(MINE)}).catch(()=>{BUSY=MINE.slice()})}
 function refreshSlots(){
   const f=$('#cf');if(!f)return;const sel=f.querySelector('[name=time]'),len=durMin(f.querySelector('[name=dur]').value);let first=null;
   [...sel.options].forEach(o=>{const bad=!!calSel&&clash(calSel,o.value,len);o.disabled=bad;o.textContent=o.value+(bad?' · occupé':'');if(!bad&&!first)first=o});
@@ -814,7 +834,7 @@ function contactPage(){
    </div></section>
   </div>${foot()}</div>`;
   $('#cprev').onclick=()=>moveCal(-1);$('#cnext').onclick=()=>moveCal(1);
-  $('#cdays').addEventListener('click',e=>{const b=e.target.closest('button.d');if(!b||b.disabled)return;calSel=b.dataset.d;drawCal();showSel()});
+  $('#cdays').addEventListener('click',e=>{const b=e.target.closest('button.d');if(!b||b.disabled)return;calSel=b.dataset.d;drawCal();showSel();loadBusy().then(()=>{drawCal();refreshSlots()})});
   $('#cf').addEventListener('submit',sendForm);
   $('#cf').querySelector('[name=dur]').addEventListener('change',refreshSlots);
   $('#cf').querySelector('[name=mode]').addEventListener('change',drawExt);drawExt();
@@ -855,15 +875,17 @@ function sendForm(e){
   if(d.mode==='Sur place'&&!(d.addr||'').trim()){st.className='err';st.textContent='Merci d’indiquer l’adresse du rendez-vous.';return}
   if(clash(calSel,d.time,durMin(d.dur))){st.className='err';st.textContent='Ce créneau n’est pas disponible. Choisissez une autre heure.';return}
   b.disabled=true;st.className='';st.textContent='';
+  const ld=loadingScreen();
+  loadBusy().then(()=>{if(clash(calSel,d.time,durMin(d.dur))){ld.remove();b.disabled=false;drawCal();refreshSlots();st.className='err';st.textContent='Ce créneau vient d’être pris. Choisissez une autre heure, elle est mise à jour dans la liste.';return}go()});
+  function go(){
   const quand=frDate(calSel)+' à '+d.time,day=calSel,start=d.time,len=durMin(d.dur);
   const where=d.mode==='Visioconférence'?((d.link||'').trim()||'Lien de visioconférence à vous envoyer'):d.mode==='Téléphone'?'Appel au '+d.phone.trim():d.addr.trim();
   const recap={quand,dur:d.dur,mode:d.mode,where};
-  const ld=loadingScreen();
   let over=false;
   const finish=ok=>{
     if(over)return;over=true;clearTimeout(tm);
     ld.remove();b.disabled=false;
-    if(ok){BUSY.push({date:day,start:start,end:fmt(mins(start)+len)});f.reset();drawExt();calSel='';drawCal();$('#csel').classList.remove('ok');$('#csel').textContent='Choisissez un jour dans le calendrier';refreshSlots();thanks(recap,d.email.trim())}
+    if(ok){const nb={date:day,start:start,end:fmt(mins(start)+len)};BUSY.push(nb);MINE.push(nb);f.reset();drawExt();calSel='';drawCal();$('#csel').classList.remove('ok');$('#csel').textContent='Choisissez un jour dans le calendrier';refreshSlots();thanks(recap,d.email.trim())}
     else failScreen(recap,d);
   };
   const tm=setTimeout(()=>finish(true),7000);
@@ -878,6 +900,7 @@ function sendForm(e){
      if(!x.ok)throw new Error('http');
      finish(true);
    }).catch(e=>{console.warn('Envoi :',e&&e.message);if(!over)finish(false)});
+  }
 }
 function loadingScreen(){
   const o=document.createElement('div');o.className='ldg';o.setAttribute('role','alertdialog');o.setAttribute('aria-live','assertive');o.setAttribute('aria-label','Envoi de votre réservation');
