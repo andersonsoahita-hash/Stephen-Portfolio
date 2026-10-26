@@ -343,6 +343,7 @@ footer .fchip div{display:flex;flex-direction:column;gap:2px}
 /* photo d'accueil : l'image agrandie reste dans son cadre */
 .hero .photo{overflow:hidden}
 .chead h1{font-size:clamp(34px,5.2vw,68px)!important;line-height:1.08;max-width:17em}
+.cform .hint{margin:-6px 0 0;font-size:13px;color:var(--mut);line-height:1.5}.cform label em{text-transform:none;letter-spacing:0;font-style:normal;color:var(--mut);font-weight:400}
 .k.bz{background:#fff;border-radius:50%;width:9px;height:9px;box-shadow:0 0 0 2px rgba(7,26,51,.8)}
 .howto{max-width:760px;margin:0 0 26px;padding:18px 22px;border-radius:12px;background:rgba(201,164,92,.1);border:1px solid rgba(201,164,92,.35);line-height:1.55;color:#e4e9f5}
 .howto b{display:block;color:var(--gold);margin-bottom:6px;letter-spacing:.04em}
@@ -467,7 +468,7 @@ footer .fchip div{display:flex;flex-direction:column;gap:2px}
 </head>
 <body>
 <nav id="nav"><div id="bar"></div><a class="brand" href="#/">Stephen Anderson Soahita</a>
-<ul><li><a href="#/c/realisations">Réalisations</a></li><li><a href="#/c/experiences">Expériences</a></li><li><a href="#/c/formation">Formation</a></li><li><a href="#/contact">Contact</a></li></ul></nav>
+<ul><li><a href="#/c/realisations">Réalisations</a></li><li><a href="#/c/experiences">Expériences</a></li><li><a href="#/c/formation">Formation</a></li><li><a href="#/contact">Proposer un entretien</a></li></ul></nav>
 
 <div id="app"></div>
 <template id="t-hero"><header class="hero" id="top">
@@ -477,7 +478,7 @@ footer .fchip div{display:flex;flex-direction:column;gap:2px}
 <h1>Stephen<br>Anderson<br>Soahita</h1>
 <p class="q">Je crée des contenus et j’anime des communautés. Sur la page d’un centre de formation, cela a donné <b>+509 followers et 19 000 vues en 28 jours</b>.</p>
 <div class="words">Je filme, je monte et je photographie moi-même.</div>
-<div class="btns"><a class="btn gold" href="#/c/realisations">Voir mes réalisations</a><a class="btn ghost" href="#/contact">Me contacter</a></div>
+<div class="btns"><a class="btn gold" href="#/c/realisations">Voir mes réalisations</a><a class="btn ghost" href="#/contact">Proposer un entretien</a></div>
 </div>
 </header></template>
 <template id="t-thread"><section class="thread" id="fil">
@@ -586,7 +587,7 @@ function tile(it,i){
 }
 function nextChap(c){
   const i=ORDER.indexOf(c);
-  if(i===ORDER.length-1)return `<div class="nextch rv"><a href="#/contact"><div><small>Pour finir</small><b>Me contacter</b></div><span class="ar">→</span></a><p class="backhome"><a href="#/">← Retour à l’accueil</a></p></div>`;
+  if(i===ORDER.length-1)return `<div class="nextch rv"><a href="#/contact"><div><small>Pour finir</small><b>Proposer un entretien</b></div><span class="ar">→</span></a><p class="backhome"><a href="#/">← Retour à l’accueil</a></p></div>`;
   const nx=ORDER[i+1];const d=CATS[nx];
   return `<div class="nextch rv"><a href="#/c/${nx}"><div><small>${d.k} · suite</small><b>${d.t}</b></div><span class="ar">→</span></a></div>`;
 }
@@ -743,8 +744,8 @@ function contactPage(){
     +SOCIAL.links.filter(l=>l.url).map(l=>chip([l.name,ico(l.name)],l.handle,l.url,' target="_blank" rel="noopener"')).join('');
   app.innerHTML=`<div class="page"><div class="apage contactp">
   <div class="crumbs"><a href="#/">Accueil</a> · Contact</div>
-  <div class="kick">Entretien</div>
-  <h1>Parlons de votre alternance</h1>
+  <div class="kick">Proposer un entretien</div>
+  <h1>Proposez-moi un entretien</h1>
   <p class="intro">Je cherche une alternance de deux ans en community management et contenu de marque, du 28 septembre 2026 au 8 septembre 2028, à Paris et en Île-de-France. Réservez directement un créneau ci-dessous.</p>
   <div class="howto"><b>Comment réserver ?</b><ol><li>Choisissez un jour <em>en vert</em> (période en entreprise) : c’est là que je suis disponible pour un entretien. Les jours en bleu, ce sont mes semaines d’école.</li><li>Sélectionnez l’heure, la durée et le format.</li><li>Renseignez vos coordonnées et validez : vous recevez une copie par e-mail.</li></ol></div>
   <div class="rdv">
@@ -756,16 +757,17 @@ function contactPage(){
     <p class="cnote">Calendrier de l’alternance INSEEC MSc, session 2026-2028. Les heures grisées dans la liste sont déjà prises ou indisponibles.</p>
    </section>
    <form class="cform" id="cf" novalidate>
-    <h3>Votre proposition</h3>
+    <h3>Votre proposition d’entretien</h3>
+    <label>Nom et prénom<input name="name" required autocomplete="name"></label>
+    <label>Adresse e-mail<input name="email" type="email" required autocomplete="email" inputmode="email"></label>
+    <label>Société ou école<input name="org" autocomplete="organization"></label>
     <div class="sel" id="csel">Choisissez un jour dans le calendrier</div>
     <div class="row3">
      <label>Heure<select name="time">${slots.map(s=>`<option value="${s}"${s==='10:00'?' selected':''}>${s}</option>`).join('')}</select></label>
      <label>Durée<select name="dur"><option>30 min</option><option>45 min</option><option selected>1 h</option></select></label>
      <label>Format<select name="mode"><option>Visioconférence</option><option>Téléphone</option><option>Sur place</option></select></label>
     </div>
-    <label>Votre nom<input name="name" required autocomplete="name"></label>
-    <label>Votre e-mail<input name="email" type="email" required autocomplete="email" inputmode="email"></label>
-    <label>Société ou école<input name="org" autocomplete="organization"></label>
+    <div id="cext"></div>
     <label>Message (facultatif)<textarea name="message" rows="4"></textarea></label>
     <input class="hp" type="text" name="_honey" tabindex="-1" autocomplete="off" aria-hidden="true">
     <button class="btn gold" type="submit">Réserver cet entretien</button>
@@ -784,6 +786,7 @@ function contactPage(){
   $('#cdays').addEventListener('click',e=>{const b=e.target.closest('button.d');if(!b||b.disabled)return;calSel=b.dataset.d;drawCal();showSel()});
   $('#cf').addEventListener('submit',sendForm);
   $('#cf').querySelector('[name=dur]').addEventListener('change',refreshSlots);
+  $('#cf').querySelector('[name=mode]').addEventListener('change',drawExt);drawExt();
   drawCal();
   loadBusy().then(()=>{drawCal();refreshSlots()});
 }
@@ -816,15 +819,17 @@ function sendForm(e){
   const d=Object.fromEntries(new FormData(f).entries());
   if(d._honey)return;
   if(!calSel){st.className='err';st.textContent='Choisissez d’abord un jour dans le calendrier.';return}
-  if(!d.name.trim()||!/^\S+@\S+\.\S+$/.test(d.email.trim())){st.className='err';st.textContent='Merci d’indiquer votre nom et une adresse e-mail valide.';return}
+  if(!d.name.trim()||!/^\S+@\S+\.\S+$/.test(d.email.trim())){st.className='err';st.textContent='Merci d’indiquer votre nom et prénom et une adresse e-mail valide.';return}
+  if(d.mode==='Téléphone'&&!(d.phone||'').trim()){st.className='err';st.textContent='Merci d’indiquer le numéro à appeler.';return}
+  if(d.mode==='Sur place'&&!(d.addr||'').trim()){st.className='err';st.textContent='Merci d’indiquer l’adresse du rendez-vous.';return}
   if(clash(calSel,d.time,durMin(d.dur))){st.className='err';st.textContent='Ce créneau n’est pas disponible. Choisissez une autre heure.';return}
   b.disabled=true;st.className='';st.textContent='Envoi en cours…';
   const quand=frDate(calSel)+' à '+d.time;
   fetch('https://formsubmit.co/ajax/'+FORM_TO,{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},
-    body:JSON.stringify({name:d.name.trim(),email:d.email.trim(),organisation:(d.org||'').trim()||'-',proposition:quand,duree:d.dur,format:d.mode,message:(d.message||'').trim()||'-',
+    body:JSON.stringify({name:d.name.trim(),email:d.email.trim(),organisation:(d.org||'').trim()||'-',proposition:quand,duree:d.dur,format:d.mode,lien_visio:(d.link||'').trim()||'-',telephone:(d.phone||'').trim()||'-',adresse:(d.addr||'').trim()||'-',message:(d.message||'').trim()||'-',
       _subject:'Réservation d’entretien · '+quand+' · '+d.name.trim(),_cc:d.email.trim(),_template:'table',_captcha:'false'})})
    .then(r=>r.json()).then(j=>{
-     if(j&&(j.success===true||j.success==='true')){BUSY.push({date:calSel,start:d.time,end:fmt(mins(d.time)+durMin(d.dur))});const nm=d.name.trim().split(/\s+/)[0];f.reset();const dd=calSel;calSel='';drawCal();$('#csel').classList.remove('ok');$('#csel').textContent='Choisissez un jour dans le calendrier';refreshSlots();st.className='';st.textContent='';thanks(nm,quand,d.email.trim())}
+     if(j&&(j.success===true||j.success==='true')){BUSY.push({date:calSel,start:d.time,end:fmt(mins(d.time)+durMin(d.dur))});const nm='';f.reset();drawExt();const dd=calSel;calSel='';drawCal();$('#csel').classList.remove('ok');$('#csel').textContent='Choisissez un jour dans le calendrier';refreshSlots();st.className='';st.textContent='';thanks(nm,quand,d.email.trim())}
      else throw new Error('refus');
    }).catch(()=>{st.className='err';st.textContent='L’envoi automatique a échoué. Écrivez directement à '+SOCIAL.email2+' ou '+mail()+'.'})
    .finally(()=>{b.disabled=false});
@@ -835,10 +840,19 @@ function thanks(nm,quand,mail){
   const o=document.createElement('div');o.className='thx';o.setAttribute('role','dialog');o.setAttribute('aria-modal','true');
   let conf='';for(let i=0;i<28;i++){const a=i/28*360,dist=90+Math.random()*110;conf+=`<i style="--x:${(Math.cos(a*Math.PI/180)*dist).toFixed(0)}px;--y:${(Math.sin(a*Math.PI/180)*dist).toFixed(0)}px;--r:${(Math.random()*540-270).toFixed(0)}deg;--dl:${(Math.random()*.25).toFixed(2)}s;--c:${['#c9a45c','#fff','#7fb2ff','#9fe3b0'][i%4]}"></i>`}
   o.innerHTML=`<div class="thxbox"><div class="thxc">${conf}<svg viewBox="0 0 52 52" aria-hidden="true"><circle cx="26" cy="26" r="24"/><path d="M15 27l8 8 15-17"/></svg></div>
-  <h2>Merci ${nm.replace(/</g,'&lt;')} !</h2><p class="thxp">Hâte de vous rencontrer.</p><p class="thxd">${quand}</p><p class="thxs">Une copie de votre réservation arrive à <b>${mail.replace(/</g,'&lt;')}</b>.</p>
+  <h2>Merci !</h2><p class="thxp">Hâte de vous rencontrer.</p><p class="thxd">${quand}</p><p class="thxs">Une copie de votre réservation arrive à <b>${mail.replace(/</g,'&lt;')}</b>.</p>
   <button class="btn gold" type="button">Fermer</button></div>`;
   document.body.appendChild(o);const close=()=>o.remove();o.querySelector('button').onclick=close;o.addEventListener('click',e=>{if(e.target===o)close()});
   setTimeout(()=>{const b=o.querySelector('button');b&&b.focus()},50);
+}
+
+function drawExt(){
+  const f=$('#cf');if(!f)return;const m=f.querySelector('[name=mode]').value,box=$('#cext');
+  box.innerHTML=m==='Visioconférence'
+   ?'<label>Lien de visioconférence <em>(facultatif)</em><input name="link" type="text" inputmode="url" autocomplete="off" placeholder="Lien Teams, Google Meet, Zoom…"></label><p class="hint">Collez votre lien Teams ou celui de l’outil que vous utilisez. Sans lien, je vous en propose un.</p>'
+   :m==='Téléphone'
+   ?'<label>Numéro à appeler<input name="phone" type="tel" required autocomplete="tel" inputmode="tel" placeholder="06 00 00 00 00"></label>'
+   :'<label>Adresse du rendez-vous<input name="addr" required autocomplete="street-address" placeholder="Numéro, rue, code postal, ville"></label><p class="hint">Indiquez le lieu exact, avec l’étage ou l’accueil si besoin.</p>';
 }
 
 function chapter(c){
