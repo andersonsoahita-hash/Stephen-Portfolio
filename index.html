@@ -342,6 +342,17 @@ footer .fchip div{display:flex;flex-direction:column;gap:2px}
 .tri .gl .btn{font-size:12.5px;padding:8px 14px}
 /* photo d'accueil : l'image agrandie reste dans son cadre */
 .hero .photo{overflow:hidden}
+.d.b:after{content:"";position:absolute;right:5px;top:5px;width:7px;height:7px;border-radius:50%;background:#fff;box-shadow:0 0 0 2px rgba(7,26,51,.8)}
+.cdays .d{position:relative}
+.cform option:disabled{color:#9aa4b8}
+.adm .admgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px;align-items:start}
+.alist{list-style:none;display:flex;flex-direction:column;gap:10px;margin:0;padding:0}
+.alist li{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 14px;border-radius:10px;background:rgba(7,26,51,.6);border:1px solid rgba(255,255,255,.12);color:#fff;font-size:14.5px}
+.alist li.past{opacity:.5}.alist li.none{color:var(--mut);justify-content:center}
+.alist .btn{padding:8px 14px;font-size:12.5px}
+.adm .err{color:#ffb4a8;font-size:14px}.adm .ok{color:#9fe3b0;font-size:14px}
+.adm details{margin-top:6px}.adm details ol{margin:10px 0 0 18px;line-height:1.7}
+@media(max-width:900px){.adm .admgrid{grid-template-columns:1fr}}
 .contactp{max-width:1180px}
 .contactp h1{font-family:Fraunces,serif;font-weight:600;font-size:clamp(34px,5.4vw,60px);color:#fff;margin:6px 0 10px}
 .contactp .intro{color:#d9dfeb;max-width:68ch;margin-bottom:30px}
@@ -491,7 +502,6 @@ const ROWS=[{"id":"cm","cat":"realisations","title":"Community management","sub"
 /* ---------- À REMPLIR : comptes, CV, chiffres ---------- */
 const SOCIAL={
  email:{user:'stephen.soahita',domain:'inseec-france.com'},
- agenda:'',   // facultatif : lien d'intégration Google Agenda (agenda public) pour afficher ton agenda en direct
  email2:'andersonsoahita@gmail.com',   // adresse personnelle : reçoit les messages du formulaire
  cv:'',   // chemin du CV en PDF, par ex. 'cv/CV_Stephen_Anderson_Soahita.pdf' (vide = bouton masqué)
  links:[
@@ -612,6 +622,70 @@ function introInit(){
   setTimeout(close,14000);
 }
 
+const GH_REPO='andersonsoahita-hash/Stephen-Portfolio',GH_FILE='entretiens.json';
+function adminPage(){
+  app.innerHTML=`<div class="page"><div class="apage contactp"><div class="crumbs"><a href="#/">Accueil</a> · Gestion des entretiens</div>
+  <div class="kick">Réservé à Stephen</div><h1>Mes entretiens</h1>
+  <p class="intro">Ajoutez ici vos entretiens : ils apparaissent comme créneaux occupés dans le calendrier public, pour que deux entretiens ne se superposent pas. Seuls le jour et l’heure sont publiés, jamais le nom de la société.</p>
+  <section class="adm" id="adm"></section></div>${foot()}</div>`;
+  let tok='';try{tok=sessionStorage.getItem('gh_tok')||''}catch(e){}
+  tok?adminLoad(tok):adminLogin('');
+}
+function adminLogin(msg){
+  $('#adm').innerHTML=`<form class="cform" id="alog"><h3>Connexion</h3>
+   <p class="fnote">Collez votre jeton GitHub. Il reste dans cet onglet uniquement et disparaît à la fermeture.</p>
+   <label>Jeton GitHub<input type="password" name="tok" autocomplete="current-password" required></label>
+   <button class="btn gold" type="submit">Se connecter</button><p id="ast" class="err">${msg||''}</p>
+   <details class="fnote"><summary>Créer le jeton (une seule fois)</summary><ol>
+    <li>GitHub → votre photo → Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token.</li>
+    <li>Repository access : « Only select repositories » → Stephen-Portfolio.</li>
+    <li>Permissions → Repository permissions → Contents : Read and write.</li>
+    <li>Générez, copiez le jeton et collez-le ici.</li></ol></details></form>`;
+  $('#alog').addEventListener('submit',e=>{e.preventDefault();const t=e.target.elements.tok.value.trim();if(!t)return;try{sessionStorage.setItem('gh_tok',t)}catch(x){}adminLoad(t)});
+}
+function ghHead(tok){return{'Authorization':'Bearer '+tok,'Accept':'application/vnd.github+json'}}
+function adminLoad(tok){
+  $('#adm').innerHTML='<p class="fnote">Chargement…</p>';
+  fetch('https://api.github.com/repos/'+GH_REPO+'/contents/'+GH_FILE+'?ref=main&t='+Date.now(),{headers:ghHead(tok)}).then(r=>{
+    if(r.status===404)return{list:[],sha:null};
+    if(!r.ok)throw new Error(String(r.status));
+    return r.json().then(j=>({list:JSON.parse(atob(j.content.replace(/\n/g,''))||'[]'),sha:j.sha}));
+  }).then(s=>adminDraw(tok,s.list,s.sha)).catch(e=>{try{sessionStorage.removeItem('gh_tok')}catch(x){}adminLogin('Connexion refusée ('+e.message+'). Vérifiez le jeton et ses droits sur le dépôt.')});
+}
+function adminDraw(tok,list,sha,msg,ok){
+  list.sort((a,b)=>(a.date+a.start).localeCompare(b.date+b.start));
+  const today=iso(new Date());
+  const rows=list.map((x,i)=>`<li${x.date<today?' class="past"':''}><span><b>${frDate(x.date)}</b> · ${x.start} – ${x.end}</span><button type="button" class="btn ghost" data-i="${i}">Supprimer</button></li>`).join('')||'<li class="none">Aucun entretien enregistré.</li>';
+  const slots=[];for(let h=7;h<=20;h++){['00','30'].forEach(m=>slots.push(String(h).padStart(2,'0')+':'+m))}
+  $('#adm').innerHTML=`<div class="admgrid"><div class="cform"><h3>Entretiens prévus</h3><ul class="alist">${rows}</ul></div>
+   <form class="cform" id="aadd"><h3>Ajouter un entretien</h3>
+    <label>Jour<input type="date" name="date" required min="${today}"></label>
+    <div class="row3"><label>Début<select name="start">${slots.map(s=>`<option${s==='10:00'?' selected':''}>${s}</option>`).join('')}</select></label>
+    <label>Durée<select name="len"><option value="30">30 min</option><option value="45">45 min</option><option value="60" selected>1 h</option><option value="90">1 h 30</option><option value="120">2 h</option></select></label><span></span></div>
+    <button class="btn gold" type="submit">Ajouter</button>
+    <p id="ast" class="${ok?'ok':'err'}">${msg||''}</p>
+    <p class="fnote">Le site public se met à jour en une à deux minutes après chaque modification.</p>
+    <button type="button" class="btn ghost" id="aout">Se déconnecter</button></form></div>`;
+  $('#aout').onclick=()=>{try{sessionStorage.removeItem('gh_tok')}catch(e){}adminLogin('')};
+  document.querySelectorAll('.alist button').forEach(b=>b.onclick=()=>{const n=list.slice();n.splice(+b.dataset.i,1);adminSave(tok,n,sha,'Entretien supprimé.')});
+  $('#aadd').addEventListener('submit',e=>{
+    e.preventDefault();const f=e.target,d=f.elements.date.value,s=f.elements.start.value,len=+f.elements.len.value;
+    if(!d)return;
+    const a=mins(s),b=a+len,end=String(Math.floor(b/60)).padStart(2,'0')+':'+String(b%60).padStart(2,'0');
+    const clash=list.find(x=>x.date===d&&a<mins(x.end)&&b>mins(x.start));
+    if(clash){$('#ast').className='err';$('#ast').textContent='Cet horaire chevauche un entretien déjà prévu ce jour-là ('+clash.start+' – '+clash.end+').';return}
+    adminSave(tok,list.concat([{date:d,start:s,end:end}]),sha,'Entretien ajouté.');
+  });
+}
+function adminSave(tok,list,sha,okMsg){
+  $('#ast').className='';$('#ast').textContent='Enregistrement…';
+  const body={message:'Mise à jour des entretiens',content:btoa(JSON.stringify(list,null,1)+'\n'),branch:'main'};if(sha)body.sha=sha;
+  fetch('https://api.github.com/repos/'+GH_REPO+'/contents/'+GH_FILE,{method:'PUT',headers:Object.assign({'Content-Type':'application/json'},ghHead(tok)),body:JSON.stringify(body)})
+   .then(r=>{if(!r.ok)throw new Error(String(r.status));return r.json()})
+   .then(j=>adminDraw(tok,list,j.content.sha,okMsg,true))
+   .catch(e=>{$('#ast').className='err';$('#ast').textContent='Échec de l’enregistrement ('+e.message+'). Rechargez la page et réessayez.'});
+}
+
 const FORM_TO=SOCIAL.email2;
 const ALT={"2026-09-28":"F","2026-09-29":"F","2026-09-30":"F","2026-10-01":"F","2026-10-02":"F","2026-10-05":"E","2026-10-06":"E","2026-10-07":"E","2026-10-08":"E","2026-10-09":"E","2026-10-12":"E","2026-10-13":"E","2026-10-14":"E","2026-10-15":"E","2026-10-16":"E","2026-10-19":"E","2026-10-20":"E","2026-10-21":"E","2026-10-22":"E","2026-10-23":"E","2026-10-26":"F","2026-10-27":"F","2026-10-28":"F","2026-10-29":"F","2026-10-30":"F","2026-11-01":"H","2026-11-02":"E","2026-11-03":"E","2026-11-04":"E","2026-11-05":"E","2026-11-06":"E","2026-11-09":"E","2026-11-10":"E","2026-11-11":"H","2026-11-12":"E","2026-11-13":"E","2026-11-16":"E","2026-11-17":"E","2026-11-18":"E","2026-11-19":"E","2026-11-20":"E","2026-11-23":"F","2026-11-24":"F","2026-11-25":"F","2026-11-26":"F","2026-11-27":"F","2026-12-01":"E","2026-12-02":"E","2026-12-03":"E","2026-12-04":"E","2026-12-07":"E","2026-12-08":"E","2026-12-09":"E","2026-12-10":"E","2026-12-11":"E","2026-12-14":"F","2026-12-15":"F","2026-12-16":"F","2026-12-17":"F","2026-12-18":"F","2026-12-21":"E","2026-12-22":"E","2026-12-23":"E","2026-12-24":"E","2026-12-25":"H","2026-12-28":"E","2026-12-29":"E","2026-12-30":"E","2026-12-31":"E","2027-01-01":"H","2027-01-04":"E","2027-01-05":"E","2027-01-06":"E","2027-01-07":"E","2027-01-08":"E","2027-01-11":"F","2027-01-12":"F","2027-01-13":"F","2027-01-14":"F","2027-01-15":"F","2027-01-18":"E","2027-01-19":"E","2027-01-20":"E","2027-01-21":"E","2027-01-22":"E","2027-01-25":"E","2027-01-26":"E","2027-01-27":"E","2027-01-28":"E","2027-01-29":"E","2027-02-01":"E","2027-02-02":"E","2027-02-03":"E","2027-02-04":"E","2027-02-05":"E","2027-02-08":"F","2027-02-09":"F","2027-02-10":"F","2027-02-11":"F","2027-02-12":"F","2027-02-15":"E","2027-02-16":"E","2027-02-17":"E","2027-02-18":"E","2027-02-19":"E","2027-02-22":"E","2027-02-23":"E","2027-02-24":"E","2027-02-25":"E","2027-02-26":"E","2027-03-01":"E","2027-03-02":"E","2027-03-03":"E","2027-03-04":"E","2027-03-05":"E","2027-03-08":"F","2027-03-09":"F","2027-03-10":"F","2027-03-11":"F","2027-03-12":"F","2027-03-15":"E","2027-03-16":"E","2027-03-17":"E","2027-03-18":"E","2027-03-19":"E","2027-03-22":"E","2027-03-23":"E","2027-03-24":"E","2027-03-25":"E","2027-03-26":"E","2027-03-29":"H","2027-03-30":"E","2027-03-31":"E","2027-04-01":"E","2027-04-02":"E","2027-04-05":"F","2027-04-06":"F","2027-04-07":"F","2027-04-08":"F","2027-04-09":"F","2027-04-12":"E","2027-04-13":"E","2027-04-14":"E","2027-04-15":"E","2027-04-16":"E","2027-04-19":"F","2027-04-20":"F","2027-04-21":"F","2027-04-22":"F","2027-04-23":"F","2027-04-26":"E","2027-04-27":"E","2027-04-28":"E","2027-04-29":"E","2027-04-30":"E","2027-05-01":"H","2027-05-03":"F","2027-05-04":"F","2027-05-05":"F","2027-05-06":"H","2027-05-07":"F","2027-05-08":"H","2027-05-10":"E","2027-05-11":"E","2027-05-12":"E","2027-05-13":"E","2027-05-14":"E","2027-05-17":"E","2027-05-18":"E","2027-05-19":"E","2027-05-20":"E","2027-05-21":"E","2027-05-24":"E","2027-05-25":"E","2027-05-26":"E","2027-05-27":"E","2027-05-28":"E","2027-05-31":"F","2027-06-01":"F","2027-06-02":"F","2027-06-03":"F","2027-06-04":"F","2027-06-07":"E","2027-06-08":"E","2027-06-09":"E","2027-06-10":"E","2027-06-11":"E","2027-06-14":"E","2027-06-15":"E","2027-06-16":"E","2027-06-17":"E","2027-06-18":"E","2027-06-21":"E","2027-06-22":"E","2027-06-23":"E","2027-06-24":"E","2027-06-25":"E","2027-06-28":"F","2027-06-29":"F","2027-06-30":"F","2027-07-01":"F","2027-07-02":"F","2027-07-05":"X","2027-07-06":"X","2027-07-07":"X","2027-07-08":"X","2027-07-09":"E","2027-07-12":"E","2027-07-13":"E","2027-07-14":"H","2027-07-15":"E","2027-07-16":"E","2027-07-19":"E","2027-07-20":"E","2027-07-21":"E","2027-07-22":"E","2027-07-23":"E","2027-07-26":"E","2027-07-27":"E","2027-07-28":"E","2027-07-29":"E","2027-07-30":"E","2027-08-02":"E","2027-08-03":"E","2027-08-04":"E","2027-08-05":"E","2027-08-06":"E","2027-08-09":"E","2027-08-10":"E","2027-08-11":"E","2027-08-12":"E","2027-08-13":"E","2027-08-15":"H","2027-08-16":"E","2027-08-17":"E","2027-08-18":"E","2027-08-19":"E","2027-08-20":"E","2027-08-23":"E","2027-08-24":"E","2027-08-25":"E","2027-08-26":"E","2027-08-27":"E","2027-08-30":"E","2027-08-31":"E","2027-09-01":"E","2027-09-02":"E","2027-09-03":"E","2027-09-06":"F","2027-09-07":"F","2027-09-08":"F","2027-09-09":"F","2027-09-10":"F","2027-09-13":"E","2027-09-14":"E","2027-09-15":"E","2027-09-16":"E","2027-09-17":"E","2027-09-20":"E","2027-09-21":"E","2027-09-22":"E","2027-09-23":"E","2027-09-24":"E","2027-09-27":"E","2027-09-28":"E","2027-09-29":"E","2027-09-30":"E","2027-10-01":"E","2027-10-04":"F","2027-10-05":"F","2027-10-06":"F","2027-10-07":"F","2027-10-08":"F","2027-10-11":"E","2027-10-12":"E","2027-10-13":"E","2027-10-14":"E","2027-10-15":"E","2027-10-18":"E","2027-10-19":"E","2027-10-20":"E","2027-10-21":"E","2027-10-22":"E","2027-10-25":"E","2027-10-26":"E","2027-10-27":"E","2027-10-28":"E","2027-10-29":"E","2027-11-01":"H","2027-11-02":"F","2027-11-03":"F","2027-11-04":"F","2027-11-05":"F","2027-11-08":"E","2027-11-09":"E","2027-11-10":"E","2027-11-11":"H","2027-11-12":"E","2027-11-15":"E","2027-11-16":"E","2027-11-17":"E","2027-11-18":"E","2027-11-19":"E","2027-11-22":"E","2027-11-23":"E","2027-11-24":"E","2027-11-25":"E","2027-11-26":"E","2027-11-29":"F","2027-11-30":"F","2027-12-01":"F","2027-12-02":"F","2027-12-03":"F","2027-12-06":"E","2027-12-07":"E","2027-12-08":"E","2027-12-09":"E","2027-12-10":"E","2027-12-13":"E","2027-12-14":"E","2027-12-15":"E","2027-12-16":"E","2027-12-17":"E","2027-12-20":"E","2027-12-21":"E","2027-12-22":"E","2027-12-23":"E","2027-12-24":"E","2027-12-25":"H","2027-12-27":"E","2027-12-28":"E","2027-12-29":"E","2027-12-30":"E","2027-12-31":"E","2028-01-01":"H","2028-01-03":"F","2028-01-04":"F","2028-01-05":"F","2028-01-06":"F","2028-01-07":"F","2028-01-10":"E","2028-01-11":"E","2028-01-12":"E","2028-01-13":"E","2028-01-14":"E","2028-01-17":"E","2028-01-18":"E","2028-01-19":"E","2028-01-20":"E","2028-01-21":"E","2028-01-24":"E","2028-01-25":"E","2028-01-26":"E","2028-01-27":"E","2028-01-28":"E","2028-01-31":"F","2028-02-01":"F","2028-02-02":"F","2028-02-03":"F","2028-02-04":"F","2028-02-07":"E","2028-02-08":"E","2028-02-09":"E","2028-02-10":"E","2028-02-11":"E","2028-02-14":"E","2028-02-15":"E","2028-02-16":"E","2028-02-17":"E","2028-02-18":"E","2028-02-21":"E","2028-02-22":"E","2028-02-23":"E","2028-02-24":"E","2028-02-25":"E","2028-02-28":"F","2028-02-29":"F","2028-03-01":"F","2028-03-02":"F","2028-03-03":"F","2028-03-06":"E","2028-03-07":"E","2028-03-08":"E","2028-03-09":"E","2028-03-10":"E","2028-03-13":"E","2028-03-14":"E","2028-03-15":"E","2028-03-16":"E","2028-03-17":"E","2028-03-20":"E","2028-03-21":"E","2028-03-22":"E","2028-03-23":"E","2028-03-24":"E","2028-03-27":"F","2028-03-28":"F","2028-03-29":"F","2028-03-30":"F","2028-03-31":"F","2028-04-03":"E","2028-04-04":"E","2028-04-05":"E","2028-04-06":"E","2028-04-07":"E","2028-04-10":"E","2028-04-11":"E","2028-04-12":"E","2028-04-13":"E","2028-04-14":"E","2028-04-17":"H","2028-04-18":"E","2028-04-19":"E","2028-04-20":"E","2028-04-21":"E","2028-04-24":"F","2028-04-25":"F","2028-04-26":"F","2028-04-27":"F","2028-04-28":"F","2028-05-01":"H","2028-05-02":"E","2028-05-03":"E","2028-05-04":"E","2028-05-05":"E","2028-05-08":"H","2028-05-09":"E","2028-05-10":"E","2028-05-11":"E","2028-05-12":"E","2028-05-15":"F","2028-05-16":"F","2028-05-17":"F","2028-05-18":"F","2028-05-19":"F","2028-05-22":"E","2028-05-23":"E","2028-05-24":"E","2028-05-25":"H","2028-05-26":"E","2028-05-29":"E","2028-05-30":"E","2028-05-31":"E","2028-06-01":"E","2028-06-02":"E","2028-06-05":"E","2028-06-06":"E","2028-06-07":"E","2028-06-08":"E","2028-06-09":"E","2028-06-12":"F","2028-06-13":"F","2028-06-14":"F","2028-06-15":"F","2028-06-16":"F","2028-06-19":"E","2028-06-20":"E","2028-06-21":"E","2028-06-22":"E","2028-06-23":"E","2028-06-26":"E","2028-06-27":"E","2028-06-28":"E","2028-06-29":"E","2028-06-30":"E","2028-07-03":"E","2028-07-04":"E","2028-07-05":"E","2028-07-06":"E","2028-07-07":"E","2028-07-10":"F","2028-07-11":"F","2028-07-12":"E","2028-07-13":"E","2028-07-14":"H","2028-07-17":"X","2028-07-18":"X","2028-07-19":"X","2028-07-20":"X","2028-07-21":"X","2028-07-24":"E","2028-07-25":"E","2028-07-26":"E","2028-07-27":"E","2028-07-28":"E","2028-07-31":"E","2028-08-01":"E","2028-08-02":"E","2028-08-03":"E","2028-08-04":"E","2028-08-07":"E","2028-08-08":"E","2028-08-09":"E","2028-08-10":"E","2028-08-11":"E","2028-08-14":"E","2028-08-15":"H","2028-08-16":"E","2028-08-17":"E","2028-08-18":"E","2028-08-21":"E","2028-08-22":"E","2028-08-23":"E","2028-08-24":"E","2028-08-25":"E","2028-08-28":"E","2028-08-29":"E","2028-08-30":"E","2028-08-31":"E","2028-09-01":"E","2028-09-04":"E","2028-09-05":"E","2028-09-06":"E","2028-09-07":"S","2028-09-08":"S"};
 const TYPES={F:['À l’école','f'],E:['En entreprise','e'],H:['Jour férié','h'],X:['Examen','x'],S:['Soutenance','x']};
@@ -619,7 +693,16 @@ const MOIS=['janvier','février','mars','avril','mai','juin','juillet','août','
 const JOURS=['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
 const iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 const frDate=s=>{const d=new Date(s+'T12:00:00');return JOURS[d.getDay()]+' '+d.getDate()+' '+MOIS[d.getMonth()]+' '+d.getFullYear()};
-let calY,calM,calSel='';
+let calY,calM,calSel='',BUSY=[];
+const mins=t=>{const p=t.split(':');return +p[0]*60+ +p[1]};
+const durMin=s=>s==='30 min'?30:s==='45 min'?45:60;
+const clash=(d,s,len)=>BUSY.some(x=>x.date===d&&mins(s)<mins(x.end)&&mins(s)+len>mins(x.start));
+function loadBusy(){if(typeof fetch!=='function')return Promise.resolve();return fetch('entretiens.json?t='+Date.now()).then(r=>r.ok?r.json():[]).then(a=>{BUSY=Array.isArray(a)?a.filter(x=>x&&x.date&&x.start&&x.end):[]}).catch(()=>{BUSY=[]})}
+function refreshSlots(){
+  const f=$('#cf');if(!f)return;const sel=f.querySelector('[name=time]'),len=durMin(f.querySelector('[name=dur]').value);let first=null;
+  [...sel.options].forEach(o=>{const bad=!!calSel&&clash(calSel,o.value,len);o.disabled=bad;o.textContent=o.value+(bad?' · occupé':'');if(!bad&&!first)first=o});
+  if(sel.selectedOptions[0]&&sel.selectedOptions[0].disabled&&first)sel.value=first.value;
+}
 function contactPage(){
   const now=new Date();let y=now.getFullYear(),m=now.getMonth();
   if(y<2026||(y===2026&&m<8)){y=2026;m=8}
@@ -630,10 +713,6 @@ function contactPage(){
   const direct=chip(['E-mail personnel'],SOCIAL.email2,'mailto:'+SOCIAL.email2)
     +chip(['E-mail école'],mail(),'mailto:'+mail())
     +SOCIAL.links.filter(l=>l.url).map(l=>chip([l.name,ico(l.name)],l.handle,l.url,' target="_blank" rel="noopener"')).join('');
-  const base=new URL('calendrier-alternance.ics',location.href.split('#')[0]).href;
-  const web=base.replace(/^https?:/,'webcal:');
-  const gcal='https://calendar.google.com/calendar/r?cid='+encodeURIComponent(web);
-  const live=SOCIAL.agenda?`<section class="clive"><h3>Mon agenda en direct</h3><iframe src="${SOCIAL.agenda}" title="Agenda de Stephen" loading="lazy"></iframe></section>`:'';
   app.innerHTML=`<div class="page"><div class="apage contactp">
   <div class="crumbs"><a href="#/">Accueil</a> · Contact</div>
   <div class="kick">Entretien</div>
@@ -651,7 +730,7 @@ function contactPage(){
     <h3>Votre proposition</h3>
     <div class="sel" id="csel">Choisissez un jour dans le calendrier</div>
     <div class="row3">
-     <label>Heure<select name="time">${slots.map(s=>`<option${s==='10:00'?' selected':''}>${s}</option>`).join('')}</select></label>
+     <label>Heure<select name="time">${slots.map(s=>`<option value="${s}"${s==='10:00'?' selected':''}>${s}</option>`).join('')}</select></label>
      <label>Durée<select name="dur"><option>30 min</option><option>45 min</option><option selected>1 h</option></select></label>
      <label>Format<select name="mode"><option>Visioconférence</option><option>Téléphone</option><option>Sur place</option></select></label>
     </div>
@@ -666,20 +745,18 @@ function contactPage(){
    </form>
   </div>
   <section class="cdirect"><h3>Écrire directement</h3><div class="cchips">${direct}</div></section>
-  ${live}
   <section class="cdl"><h3>Télécharger mon calendrier d’alternance</h3>
    <p>Les jours à l’école, en entreprise, fériés et d’examen du 28 septembre 2026 au 8 septembre 2028 : 126 jours à l’école et 369 jours en entreprise.</p>
    <div class="cbtns">
     <a class="btn gold" href="calendrier-alternance.pdf" download>Calendrier officiel (PDF)</a>
-    <a class="btn ghost" href="calendrier-alternance.ics" download>Fichier agenda (.ics)</a>
-    <a class="btn ghost" href="${gcal}" target="_blank" rel="noopener">S’abonner dans Google Agenda</a>
-    <a class="btn ghost" href="${web}">S’abonner (Apple, Outlook)</a>
    </div></section>
   </div>${foot()}</div>`;
   $('#cprev').onclick=()=>moveCal(-1);$('#cnext').onclick=()=>moveCal(1);
   $('#cdays').addEventListener('click',e=>{const b=e.target.closest('button.d');if(!b||b.disabled)return;calSel=b.dataset.d;drawCal();showSel()});
   $('#cf').addEventListener('submit',sendForm);
+  $('#cf').querySelector('[name=dur]').addEventListener('change',refreshSlots);
   drawCal();
+  loadBusy().then(()=>{drawCal();refreshSlots()});
 }
 function moveCal(n){
   let y=calY,m=calM+n;if(m<0){m=11;y--}if(m>11){m=0;y++}
@@ -694,15 +771,15 @@ function drawCal(){
   for(let d=1;d<=n;d++){
     const k=calY+'-'+String(calM+1).padStart(2,'0')+'-'+String(d).padStart(2,'0'),dow=new Date(calY,calM,d).getDay(),t=ALT[k];
     const off=dow===0||dow===6||k<today||t==='H'||t==='X'||t==='S';
-    const cls='d'+(t?' '+TYPES[t][1]:'')+(dow===0||dow===6?' w':'')+(k===calSel?' on':'')+(k===today?' today':'');
-    h+=`<button type="button" class="${cls}" data-d="${k}"${off?' disabled':''}${t?` title="${TYPES[t][0]}"`:''}>${d}</button>`;
+    const cls='d'+(BUSY.some(x=>x.date===k)?' b':'')+(t?' '+TYPES[t][1]:'')+(dow===0||dow===6?' w':'')+(k===calSel?' on':'')+(k===today?' today':'');
+    h+=`<button type="button" class="${cls}" data-d="${k}"${off?' disabled':''}${t||BUSY.some(x=>x.date===k)?` title="${(t?TYPES[t][0]:'')+(BUSY.some(x=>x.date===k)?(t?' · ':'')+'un entretien déjà prévu ce jour-là':'')}"`:''}>${d}</button>`;
   }
   $('#cdays').innerHTML=h;
 }
 function showSel(){
   const t=ALT[calSel],tx=t==='F'?'à l’école ce jour-là':t==='E'?'période en entreprise (rythme de l’alternance)':'jour libre';
   $('#csel').innerHTML='<b>'+frDate(calSel)+'</b><span>'+tx+'</span>';
-  $('#csel').classList.add('ok');
+  $('#csel').classList.add('ok');refreshSlots();
 }
 function sendForm(e){
   e.preventDefault();
@@ -711,6 +788,7 @@ function sendForm(e){
   if(d._honey)return;
   if(!calSel){st.className='err';st.textContent='Choisissez d’abord un jour dans le calendrier.';return}
   if(!d.name.trim()||!/^\S+@\S+\.\S+$/.test(d.email.trim())){st.className='err';st.textContent='Merci d’indiquer votre nom et une adresse e-mail valide.';return}
+  if(clash(calSel,d.time,durMin(d.dur))){st.className='err';st.textContent='Ce créneau est déjà pris. Choisissez une autre heure.';return}
   b.disabled=true;st.className='';st.textContent='Envoi en cours…';
   const quand=frDate(calSel)+' à '+d.time;
   fetch('https://formsubmit.co/ajax/'+FORM_TO,{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},
@@ -751,7 +829,7 @@ function route(){
   const h=location.hash.replace(/^#\/?/,'');const p=h.split('/').filter(Boolean);
   let cur='';
   if(p[0]==='c'&&CATS[p[1]]){cur=p[1];p[2]&&ITEMS[p[2]]?article(p[2]):chapter(p[1])}
-  else if(p[0]==='contact')contactPage();else home();
+  else if(p[0]==='contact')contactPage();else if(p[0]==='admin')adminPage();else home();
   document.querySelectorAll('nav ul a').forEach(a=>a.classList.toggle('on',a.getAttribute('href')==='#/c/'+cur));
   toTop();reveal();spy();requestAnimationFrame(toTop)
 }
