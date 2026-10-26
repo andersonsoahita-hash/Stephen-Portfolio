@@ -336,6 +336,15 @@ footer .fchip div{display:flex;flex-direction:column;gap:2px}
 .mtrack .brand{flex:none;width:176px}
 @keyframes marq{from{transform:translateX(0)}to{transform:translateX(calc(-50% - 7px))}}
 @media(prefers-reduced-motion:reduce){.marq{overflow-x:auto;-webkit-mask-image:none;mask-image:none}.mtrack{animation:none}.mtrack .brand[aria-hidden]{display:none}}
+.tri .gen{grid-column:1/-1;display:flex;gap:26px;align-items:stretch;padding:0;overflow:hidden}
+.tri .gen img{width:46%;height:auto;min-height:300px;margin:0;border-radius:0;flex:none;object-fit:cover}
+.tri .gen .gt{display:block;padding:26px 26px 26px 0;align-self:center}
+.tri .gen .by{display:block;font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--mut);margin:-2px 0 10px}
+.tri .gen .gl{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+.tri .gen .gl .btn{font-size:13px;padding:9px 16px}
+@media(max-width:760px){.tri .gen{flex-direction:column;gap:0}.tri .gen img{width:100%;min-height:0;height:230px}.tri .gen .gt{padding:20px}}
+.backhome{margin-top:14px;text-align:center}
+.backhome a{color:var(--gold);text-decoration:none;font-size:13px;font-weight:600;letter-spacing:.08em}
 .vis.video{background:#000;border-radius:12px}
 .vis.video video{display:block;width:100%;max-height:78vh;background:#000}
 /* fluidité */
@@ -363,9 +372,9 @@ footer .fchip div{display:flex;flex-direction:column;gap:2px}
 <div class="kick">Façon de travailler</div>
 <h2 class="serif">Générosité, entraide, <em>élévation.</em></h2>
 <div class="tri">
-<div><img loading="lazy" decoding="async" src="img/noel_meals.jpg" alt=""><b>Générosité</b><p>Plus de 70 repas partagés à Noël avec Isc’America. Du temps donné sans compter quand un projet lui plaît.</p></div>
+<div class="gen"><img loading="lazy" decoding="async" src="img/noel_meals.jpg" alt="Repas partagé à Noël avec Isc’America"><span class="gt"><b>Générosité</b><span class="by">Stephen Anderson Soahita · Isc’America</span><p>Plus de 70 repas partagés à Noël avec Isc’America, deux années de suite. Du temps donné sans compter quand un projet lui plaît.</p><span class="gl"><a class="btn gold" href="https://www.facebook.com/share/p/1D1qAnKpn3/" target="_blank" rel="noopener">Voir la publication 1</a><a class="btn gold" href="https://www.facebook.com/share/p/1JVsiwNnbv/" target="_blank" rel="noopener">Voir la publication 2</a></span></span></div>
 <div><img loading="lazy" decoding="async" src="img/ref_equipe.jpg" alt="" style="object-position:50% 30%"><b>Entraide</b><p>Élève référent pendant deux ans. Conseiller de son successeur à la tête de l’association. Un guide et une fiche de poste pour celui qui le remplace chez Tekwin.</p></div>
-<div><img loading="lazy" decoding="async" src="img/coach.jpg" alt="" style="object-position:50% 30%"><b>Élévation</b><p>Apprendre en continu : un master en marketing, un coaching d’art oratoire depuis août 2025, la photo, la vidéo et le slam.</p></div>
+<div><img loading="lazy" decoding="async" src="img/elevation.jpg" alt="Stephen Anderson Soahita" style="object-position:50% 18%"><b>Élévation</b><p>Apprendre en continu : un master en marketing, un coaching d’art oratoire depuis août 2025, la photo, la vidéo et le slam.</p></div>
 </div>
 <p class="quote">Grandir, ce n’est pas plaire en devenant un autre. C’est être utile en <b>restant soi.</b></p>
 </section></template>
@@ -460,7 +469,9 @@ function tile(it,i){
   return `<a class="${cls}" style="--d:${(i%4)*.07}s" href="#/c/${it._cat}/${it.id}">${inner}${it.st?`<span class="st${it.prep?' prep':''}">${it.st}</span>`:''}${tlogos(it)}${big}<div class="cap"><div class="tag">${it.tag}</div><div class="ttl">${it.title}</div></div></a>`;
 }
 function nextChap(c){
-  const nx=ORDER[(ORDER.indexOf(c)+1)%ORDER.length];const d=CATS[nx];
+  const i=ORDER.indexOf(c);
+  if(i===ORDER.length-1)return `<div class="nextch rv"><a href="#/contact"><div><small>Pour finir</small><b>Me contacter</b></div><span class="ar">→</span></a><p class="backhome"><a href="#/">← Retour à l’accueil</a></p></div>`;
+  const nx=ORDER[i+1];const d=CATS[nx];
   return `<div class="nextch rv"><a href="#/c/${nx}"><div><small>${d.k} · suite</small><b>${d.t}</b></div><span class="ar">→</span></a></div>`;
 }
 function mail(){return SOCIAL.email.user+'@'+SOCIAL.email.domain}
@@ -473,7 +484,7 @@ const ICO={
 };
 function ico(n){return ICO[n]?'<span class="si si-'+n.toLowerCase()+'">'+ICO[n]+'</span>':''}
 function icoUrl(u){const m=/instagram|tiktok|facebook|linkedin/i.exec(u||'');return m?ico({instagram:'Instagram',tiktok:'TikTok',facebook:'Facebook',linkedin:'LinkedIn'}[m[0].toLowerCase()]):''}
-const BRANDS=[['speakup','Speak Up English Institute'],['tekwin','Tekwin'],['accelis','Accelis'],['iscamerica','Isc’America'],['boa','BOA Madagascar'],['sos','SOS Villages d’enfants'],['inseec','INSEEC'],['ebs','EBS Paris'],['iscam','ISCAM']];
+const BRANDS=[['speakup','Speak Up English Institute'],['tekwin','Tekwin'],['accelis','Accelis'],['iscamerica','Isc’America'],['boa','BOA Madagascar'],['sos','Groupe SOS'],['inseec','INSEEC'],['ebs','EBS Paris'],['iscam','ISCAM']];
 function tlogos(it){return (it.logos&&it.logos.length)?'<span class="tlogos">'+it.logos.map(l=>'<img loading="lazy" decoding="async" src="img/logo_'+l+'.png" alt="" class="'+(l==='tekwin'?'dk':'')+'">').join('')+'</span>':''}
 function foot(){
   const chips=SOCIAL.links.filter(l=>l.url).map(l=>`<a class="fchip" href="${l.url}" target="_blank" rel="noopener">${ico(l.name)}<div><b>${l.name}</b><span>${l.handle}</span></div></a>`).join('');
