@@ -43,7 +43,7 @@ a{color:var(--gold)}
 <div id="app"></div><div id="bar" role="status"></div>
 <script>
 const PORT='andersonsoahita-hash/Stephen-Portfolio',PFILE='entretiens.json',DATA='andersonsoahita-hash/Suivi_alternance-portfolio',DFILE='data.json';
-const STAT=['À envoyer','Envoyée','Relancée','Entretien','Refus','Offre'];
+const STAT=['À préparer','Envoyée','Relancée','Entretien','Refus','Offre'];
 const MOIS=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'],JOURS=['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
 const BUF=60;
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
@@ -78,6 +78,30 @@ function syncAll(){
    .then(()=>setTimeout(()=>{if($('#bar')&&!$('#bar').classList.contains('bad'))bar('')},4500));
 }
 const save=()=>{Q=Q.then(syncAll);return Q};
+/* ---- Google Sheet (source des candidatures) ---- */
+const MAP=[['ID','sid'],['Entreprise','entreprise'],['Poste','poste'],['Lieu','lieu'],['Contrat / rythme','contrat'],['Source','source'],['Lien de l\'offre','lien'],['Date de l\'offre','dateOffre','d'],['Date d\'envoi','envoye','d'],['Statut','statut'],['Relance prévue (J+7)','relance','d'],['Contact','contact'],['CV utilisé','cv'],['Lettre','lettre'],['Fiche entretien','fiche'],['Notes','notes']];
+const fromFr=s=>{const m=/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(s||'');return m?m[3]+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0'):(s||'')};
+const toFr=s=>{const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(s||'');return m?m[3]+'/'+m[2]+'/'+m[1]:(s||'')};
+const plus7=s=>{if(!s)return '';const d=new Date(s+'T12:00:00');d.setDate(d.getDate()+7);return iso(d)};
+const rowToC=r=>{const c={};MAP.forEach(m=>{c[m[1]]=m[2]?fromFr(r[m[0]]):(r[m[0]]||'')});if(c.statut==='À envoyer')c.statut='À préparer';c.id=c.sid;return c};
+const cToRow=c=>{const r={};MAP.forEach(m=>{if(m[1]!=='sid')r[m[0]]=m[2]?toFr(c[m[1]]):(c[m[1]]||'')});return r};
+const hasSheet=()=>!!(D.sheet&&D.sheet.url&&D.sheet.key);
+const SH=body=>fetch(D.sheet.url,{method:'POST',body:JSON.stringify(Object.assign({key:D.sheet.key},body))}).then(r=>r.json()).then(j=>{if(!j.ok)throw new Error(j.err==='cle'?'clé refusée':j.err||'script');return j});
+function sheetPull(){
+  if(!hasSheet())return Promise.resolve();
+  return SH({a:'list'}).then(j=>{
+    const loc=D.candidatures.filter(c=>!c.sid),rows=j.rows.map(rowToC).reverse();
+    return loc.reduce((p,c)=>p.then(()=>SH({a:'add',row:cToRow(c)}).then(r=>{c.sid=r.id;c.id=r.id;rows.unshift(c)})),Promise.resolve()).then(()=>{D.candidatures=rows;D.sheetN=rows.length});
+  }).catch(e=>bar('Google Sheet injoignable ('+e.message+'). Les candidatures affichées viennent de la dernière synchronisation.',true));
+}
+function sheetAdd(c){if(!hasSheet())return Promise.resolve();return SH({a:'add',row:cToRow(c)}).then(r=>{c.sid=r.id;c.id=r.id;D.sheetN=(D.sheetN||0)+1;save()},e=>bar('Ajout au Google Sheet impossible ('+e.message+').',true))}
+function sheetUpd(c,keys){if(!hasSheet()||!c.sid)return Promise.resolve();const f={};keys.forEach(k=>{const m=MAP.find(x=>x[1]===k);f[m[0]]=m[2]?toFr(c[k]):(c[k]||'')});return SH({a:'upd',id:c.sid,fields:f}).catch(e=>bar('Le Google Sheet n’a pas été mis à jour ('+e.message+'). Utilisez « Actualiser » puis refaites le changement.',true))}
+function linkCand(e){ /* un entretien confirmé passe la candidature correspondante en « Entretien » */
+  const n=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[^a-z0-9]/g,''),k=n(e.entreprise);if(k.length<3)return;
+  const c=D.candidatures.find(x=>{const m=n(x.entreprise);return m&&(m.includes(k)||k.includes(m))&&!['Offre','Entretien'].includes(x.statut)});
+  if(c){c.statut='Entretien';sheetUpd(c,['statut']);bar('Candidature « '+c.entreprise+' » passée en Entretien.')}
+}
+
 /* ---- conflits ---- */
 function conflict(date,start,len,exceptId){
   const a=mins(start),b=a+len;
@@ -100,7 +124,7 @@ function load(){
   $('#app').innerHTML='<p class="login muted">Chargement…</p>';
   Promise.all([getFile(PORT,PFILE),getFile(DATA,DFILE)]).then(([p,d])=>{
     D={candidatures:[],entretiens:[],blocks:[]};MODE='cloud';
-    const fin=()=>{pubSha=p&&p.sha;merge(p&&p.data||[]);lastPub=JSON.stringify(p&&p.data||[]);draw()};
+    const fin=()=>{pubSha=p&&p.sha;merge(p&&p.data||[]);lastPub=JSON.stringify(p&&p.data||[]);D.candidatures.forEach(c=>{if(c.statut==='À envoyer')c.statut='À préparer'});sheetPull().then(draw,draw)};
     if(d&&d.data){dSha=d.sha;return dec(d.data).then(o=>{D=Object.assign(D,o);fin()},()=>{try{['suivi_pp'].forEach(k=>{localStorage.removeItem(k);sessionStorage.removeItem(k)})}catch(x){}PP='';login('Phrase secrète incorrecte.')})}
     fin();
   }).catch(e=>{try{['gh_tok','suivi_pp'].forEach(k=>{localStorage.removeItem(k);sessionStorage.removeItem(k)})}catch(x){}login('Connexion refusée ('+e.message+'). Vérifiez le jeton et ses droits.')});
@@ -127,6 +151,11 @@ function vDash(){
   <div class="card"><h3>Prochains entretiens</h3>${up.slice(0,4).map(e=>`<div class="item"><span class="t">${frDate(e.date)}, ${e.start} – ${endOf(e)}</span><div class="muted">${esc(e.entreprise)}${e.nom?' · '+esc(e.nom):''}${e.format?' · '+esc(e.format):''}</div></div>`).join('')||'<p class="muted">Aucun entretien prévu.</p>'}
   <div class="row" style="margin-top:12px"><button class="b" id="newent">Ajouter un entretien reçu par e-mail</button></div></div>
   <div class="card"><h3>Relances à faire</h3>${rel.slice(0,8).map(x=>`<div class="item"><span class="t">${esc(x.entreprise)}</span> <span class="muted">${esc(x.poste||'')} · relance prévue le ${frDate(x.relance)}</span></div>`).join('')||'<p class="muted">Aucune relance en retard.</p>'}</div>`;
+  $('#m').insertAdjacentHTML('beforeend',hasSheet()?`<div class="card"><h3>Google Sheet</h3><p class="muted">Connecté · ${D.sheetN||0} candidature${(D.sheetN||0)>1?'s':''}. Claude et vous remplissez le Sheet, cette page l’affiche.</p><div class="row"><button class="b" id="shr">Actualiser</button><button class="b o" id="shd">Déconnecter</button></div></div>`:`<div class="card"><h3>Relier mon Google Sheet</h3><p class="muted">Collez l’adresse du script et la clé secrète (une seule fois). Elles sont gardées dans votre dépôt privé, chiffrées si vous avez une phrase secrète.</p><form id="shf" class="grid g2 one"><label>Adresse du script<input name="u" inputmode="url" required placeholder="https://script.google.com/macros/s/…/exec"></label><label>Clé secrète<input name="k" type="password" autocomplete="off" required></label><p class="err" id="she" style="margin:0"></p><div class="row"><button class="b" type="submit">Connecter</button></div></form></div>`);
+  if($('#shr'))$('#shr').onclick=()=>{bar('Actualisation…');sheetPull().then(()=>{bar('');draw()})};
+  if($('#shd'))$('#shd').onclick=()=>{D.sheet=null;save();draw()};
+  if($('#shf'))$('#shf').onsubmit=e=>{e.preventDefault();const f=Object.fromEntries(new FormData(e.target));D.sheet={url:f.u.trim(),key:f.k.trim()};$('#she').textContent='Connexion…';
+    SH({a:'list'}).then(()=>sheetPull()).then(()=>{if(!D.sheetN&&D.sheetN!==0)throw new Error('vide');save();draw()}).catch(x=>{D.sheet=null;$('#she').textContent='Connexion impossible ('+x.message+'). Vérifiez l’adresse et la clé.'})};
   $('#newent').onclick=()=>{TAB='ent';DRAFT={};draw()};
 }
 function vCand(){
@@ -134,13 +163,13 @@ function vCand(){
   $('#m').innerHTML=`<div class="card"><h3>Ajouter une candidature</h3><form id="cf" class="grid g2 one"><label>Entreprise<input name="entreprise" required></label><label>Poste<input name="poste"></label><label>Contact<input name="contact" placeholder="Nom, e-mail"></label><label>Lien de l’offre<input name="lien" inputmode="url"></label><label>Envoyée le<input name="envoye" type="date" value="${today()}"></label><label>Relance le<input name="relance" type="date"></label><label>Statut<select name="statut">${STAT.map((s,i)=>`<option${i===1?' selected':''}>${s}</option>`).join('')}</select></label><label>Notes<input name="notes"></label><div class="row"><button class="b" type="submit">Ajouter</button></div></form>
   <details><summary>Ajouter plusieurs candidatures d’un coup</summary><p class="muted">Une ligne par candidature : Entreprise ; Poste ; Lien (le poste et le lien sont facultatifs).</p><textarea id="bulk" placeholder="Société A ; Community manager ; https://…"></textarea><div class="row" style="margin-top:8px"><button class="b o" id="bulkb" type="button">Importer</button></div></details></div>
   <div class="card"><div class="grid g2 one" style="margin-bottom:8px"><label>Rechercher<input id="fq" value="${esc(FILT.q)}" placeholder="Entreprise, poste…"></label><label>Statut<select id="fs"><option value="">Tous</option>${STAT.map(s=>`<option${FILT.s===s?' selected':''}>${s}</option>`).join('')}</select></label></div>
-  <p class="muted">${list.length} candidature${list.length>1?'s':''}</p><div id="cl">${list.slice(0,SHOW).map(x=>`<div class="item" data-id="${x.id}"><div class="row"><span class="t" style="flex:1">${esc(x.entreprise)}</span><span class="pill ${x.statut}">${x.statut}</span></div><div class="muted">${esc(x.poste||'')}${x.envoye?' · envoyée le '+frDate(x.envoye):''}${x.relance?' · relance le '+frDate(x.relance):''}</div>${x.contact?`<div class="muted">${esc(x.contact)}</div>`:''}${x.notes?`<div class="muted">${esc(x.notes)}</div>`:''}
-  <div class="row" style="margin-top:8px"><select data-act="st" style="width:auto">${STAT.map(s=>`<option${x.statut===s?' selected':''}>${s}</option>`).join('')}</select>${x.lien?`<a href="${esc(x.lien)}" target="_blank" rel="noopener" class="muted">Offre</a>`:''}<button class="b r s" data-act="del">Supprimer</button></div></div>`).join('')}</div>${list.length>SHOW?'<div class="row" style="margin-top:10px"><button class="b o" id="more">Afficher la suite</button></div>':''}</div>`;
-  $('#cf').onsubmit=e=>{e.preventDefault();const f=Object.fromEntries(new FormData(e.target));D.candidatures.unshift(Object.assign({id:uid()},f));save();draw()};
-  $('#bulkb').onclick=()=>{const L=$('#bulk').value.split('\n').map(s=>s.trim()).filter(Boolean);L.forEach(l=>{const p=l.split(/\s*;\s*/);D.candidatures.unshift({id:uid(),entreprise:p[0],poste:p[1]||'',lien:p[2]||'',envoye:today(),statut:'Envoyée'})});if(L.length){save();draw()}};
+  <p class="muted">${list.length} candidature${list.length>1?'s':''}</p><div id="cl">${list.slice(0,SHOW).map(x=>`<div class="item" data-id="${x.id}"><div class="row"><span class="t" style="flex:1">${esc(x.entreprise)}</span><span class="pill ${x.statut}">${x.statut}</span></div><div class="muted">${esc(x.poste||'')}${x.envoye?' · envoyée le '+frDate(x.envoye):''}${x.relance?' · relance le '+frDate(x.relance):''}</div>${x.lieu||x.contrat?`<div class="muted">${esc([x.lieu,x.contrat].filter(Boolean).join(' · '))}</div>`:''}${x.contact?`<div class="muted">Contact : ${esc(x.contact)}</div>`:''}${x.cv||x.lettre||x.fiche?`<div class="muted">${esc([x.cv,x.lettre,x.fiche].filter(Boolean).join(' · '))}</div>`:''}${x.notes?`<details><summary>Notes</summary><div class="muted">${esc(x.notes)}</div></details>`:''}
+  <div class="row" style="margin-top:8px"><select data-act="st" style="width:auto">${STAT.map(s=>`<option${x.statut===s?' selected':''}>${s}</option>`).join('')}</select>${x.lien?`<a href="${esc(x.lien)}" target="_blank" rel="noopener" class="muted">Offre</a>`:''}${x.sid?'':'<button class="b r s" data-act="del">Supprimer</button>'}</div></div>`).join('')}</div>${list.length>SHOW?'<div class="row" style="margin-top:10px"><button class="b o" id="more">Afficher la suite</button></div>':''}</div>`;
+  $('#cf').onsubmit=e=>{e.preventDefault();const f=Object.fromEntries(new FormData(e.target));if(!f.relance&&f.envoye&&f.statut==='Envoyée')f.relance=plus7(f.envoye);const c=Object.assign({id:uid()},f);D.candidatures.unshift(c);save();draw();sheetAdd(c).then(()=>{if(TAB==='cand')vCand()})};
+  $('#bulkb').onclick=()=>{const L=$('#bulk').value.split('\n').map(s=>s.trim()).filter(Boolean);const cs=L.map(l=>{const p=l.split(/\s*;\s*/);return{id:uid(),entreprise:p[0],poste:p[1]||'',lien:p[2]||'',envoye:today(),relance:plus7(today()),statut:'Envoyée'}});cs.slice().reverse().forEach(c=>D.candidatures.unshift(c));if(cs.length){save();draw();cs.reduce((q,c)=>q.then(()=>sheetAdd(c)),Promise.resolve()).then(()=>{if(TAB==='cand')vCand()})}};
   $('#fq').oninput=e=>{FILT.q=e.target.value;SHOW=80;const pos=e.target.selectionStart;vCand();const q=$('#fq');q.focus();q.setSelectionRange(pos,pos)};$('#fs').onchange=e=>{FILT.s=e.target.value;SHOW=80;vCand()};
   if($('#more'))$('#more').onclick=()=>{SHOW+=80;vCand()};
-  $('#cl').addEventListener('change',e=>{const it=e.target.closest('.item');if(!it||e.target.dataset.act!=='st')return;D.candidatures.find(x=>x.id===it.dataset.id).statut=e.target.value;save();vCand()});
+  $('#cl').addEventListener('change',e=>{const it=e.target.closest('.item');if(!it||e.target.dataset.act!=='st')return;const c=D.candidatures.find(x=>x.id===it.dataset.id),ks=['statut'];c.statut=e.target.value;if(c.statut==='Envoyée'&&!c.envoye){c.envoye=today();ks.push('envoye');if(!c.relance){c.relance=plus7(c.envoye);ks.push('relance')}}save();sheetUpd(c,ks);vCand()});
   $('#cl').addEventListener('click',e=>{const it=e.target.closest('.item');if(!it||e.target.dataset.act!=='del')return;D.candidatures=D.candidatures.filter(x=>x.id!==it.dataset.id);save();vCand()});
 }
 function parseMail(t){
@@ -168,7 +197,7 @@ function vEnt(){
   <div class="card"><h3>À venir (${up.length})</h3>${up.map(card).join('')||'<p class="muted">Aucun entretien.</p>'}</div>
   ${past.length?`<div class="card"><h3>Passés (${past.length})</h3>${past.slice(-10).reverse().map(card).join('')}</div>`:''}${can.length?`<div class="card"><h3>Annulés (${can.length})</h3>${can.map(card).join('')}</div>`:''}`;
   if(DRAFT){$('#ecancel').onclick=()=>{DRAFT=null;vEnt()};$('#ef').onsubmit=e=>{e.preventDefault();const f=Object.fromEntries(new FormData(e.target));f.len=+f.len;const c=conflict(f.date,f.start,f.len);if(c){$('#em').textContent='Ce créneau chevauche '+c+'. Choisissez une autre heure.';return}
-    D.entretiens.push(Object.assign({id:uid(),statut:'confirme'},f));DRAFT=null;save();vEnt()}}
+    const ne=Object.assign({id:uid(),statut:'confirme'},f);D.entretiens.push(ne);linkCand(ne);DRAFT=null;save();vEnt()}}
   else{$('#pp').onclick=()=>{const o=parseMail($('#paste').value);DRAFT={entreprise:o.entreprise,nom:o.nom,email:o.email,format:o.format,lieu:/envoy|à vous/i.test(o.lieu)?'':o.lieu,date:o.date,start:o.start,len:o.len};vEnt()};$('#pm').onclick=()=>{DRAFT={};vEnt()}}
   $$('.item[data-id]').forEach(it=>it.addEventListener('click',ev=>{const a=ev.target.dataset.act;if(!a)return;const e=D.entretiens.find(x=>x.id===it.dataset.id);
     if(a==='ml'){ev.preventDefault();const sub=e.statut==='annule'?'Annulation de notre entretien':'Notre entretien';location.href='mailto:'+e.email+'?subject='+encodeURIComponent(sub)+'&body='+encodeURIComponent('Bonjour,\n\n'+(e.statut==='annule'?'Je suis contraint d’annuler notre entretien du '+frDate(e.date)+' à '+e.start+'. Je vous propose de convenir d’un autre créneau.':'Concernant notre entretien du '+frDate(e.date)+' à '+e.start+' :')+'\n\nCordialement,\nStephen Anderson Soahita');return}
