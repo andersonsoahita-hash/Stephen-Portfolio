@@ -344,6 +344,24 @@ footer .fchip div{display:flex;flex-direction:column;gap:2px}
 .hero .photo{overflow:hidden}
 .chead h1{font-size:clamp(34px,5.2vw,68px)!important;line-height:1.08;max-width:17em}
 .cform .hint{margin:-6px 0 0;font-size:13px;color:var(--mut);line-height:1.5}.cform label em{text-transform:none;letter-spacing:0;font-style:normal;color:var(--mut);font-weight:400}
+.thx{overflow:auto}
+.thx .thxbox{max-width:620px;padding:46px 34px 36px}
+.thx{background:radial-gradient(ellipse at 50% 30%,#16294a 0%,#071a33 70%);backdrop-filter:none}
+.thx h2{font-size:clamp(28px,5vw,44px);line-height:1.12}
+.thxr{margin:4px auto 16px;padding:16px 18px;border-radius:12px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);display:flex;flex-direction:column;gap:4px;text-align:center}
+.thxr b{color:#fff;font-size:18px}.thxr span{color:#d6dcea;font-size:15px;word-break:break-word}
+.thxb{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+.thx.fail .thxbox{border-top-color:#ffb4a8}
+.ldg{position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;padding:24px;background:radial-gradient(ellipse at 50% 30%,#16294a 0%,#071a33 75%);text-align:center;animation:thxin .25s ease both}
+.ldgbox{max-width:680px;width:100%}
+.ldgring{width:96px;height:96px;margin:0 auto 26px;border-radius:50%;border:5px solid rgba(201,164,92,.25);border-top-color:var(--gold);animation:ldspin 1s linear infinite}
+.ldg h2{font-family:'Playfair Display',Georgia,serif;font-size:clamp(26px,4.4vw,40px);color:#fff;margin:0 0 12px}
+.ldgbig{font-size:clamp(22px,4.4vw,38px);font-weight:700;color:var(--gold);margin:0 0 28px;line-height:1.2}
+.ldgbar{height:8px;border-radius:8px;background:rgba(255,255,255,.12);overflow:hidden;max-width:420px;margin:0 auto 18px}
+.ldgbar b{display:block;height:100%;width:0;background:linear-gradient(90deg,#c9a45c,#f1d79a);border-radius:8px;animation:ldbar 7s cubic-bezier(.3,.7,.4,1) forwards}
+.ldgs{color:var(--mut);font-size:14px;margin:0}
+@keyframes ldspin{to{transform:rotate(360deg)}}
+@keyframes ldbar{to{width:96%}}
 .k.bz{background:#fff;border-radius:50%;width:9px;height:9px;box-shadow:0 0 0 2px rgba(7,26,51,.8)}
 .howto{max-width:760px;margin:0 0 26px;padding:18px 22px;border-radius:12px;background:rgba(201,164,92,.1);border:1px solid rgba(201,164,92,.35);line-height:1.55;color:#e4e9f5}
 .howto b{display:block;color:var(--gold);margin-bottom:6px;letter-spacing:.04em}
@@ -823,29 +841,53 @@ function sendForm(e){
   if(d.mode==='Téléphone'&&!(d.phone||'').trim()){st.className='err';st.textContent='Merci d’indiquer le numéro à appeler.';return}
   if(d.mode==='Sur place'&&!(d.addr||'').trim()){st.className='err';st.textContent='Merci d’indiquer l’adresse du rendez-vous.';return}
   if(clash(calSel,d.time,durMin(d.dur))){st.className='err';st.textContent='Ce créneau n’est pas disponible. Choisissez une autre heure.';return}
-  b.disabled=true;st.className='';st.textContent='Envoi en cours…';
-  const quand=frDate(calSel)+' à '+d.time;
-  fetch('https://formsubmit.co/ajax/'+FORM_TO,{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},
-    body:JSON.stringify({name:d.name.trim(),email:d.email.trim(),organisation:(d.org||'').trim()||'-',proposition:quand,duree:d.dur,format:d.mode,lien_visio:(d.link||'').trim()||'-',telephone:(d.phone||'').trim()||'-',adresse:(d.addr||'').trim()||'-',message:(d.message||'').trim()||'-',
+  b.disabled=true;st.className='';st.textContent='';
+  const quand=frDate(calSel)+' à '+d.time,day=calSel,start=d.time,len=durMin(d.dur);
+  const where=d.mode==='Visioconférence'?((d.link||'').trim()||'Lien de visioconférence à vous envoyer'):d.mode==='Téléphone'?'Appel au '+d.phone.trim():d.addr.trim();
+  const recap={quand,dur:d.dur,mode:d.mode,where};
+  const ld=loadingScreen();
+  let over=false;
+  const finish=ok=>{
+    if(over)return;over=true;clearTimeout(tm);
+    ld.remove();b.disabled=false;
+    if(ok){BUSY.push({date:day,start:start,end:fmt(mins(start)+len)});f.reset();drawExt();calSel='';drawCal();$('#csel').classList.remove('ok');$('#csel').textContent='Choisissez un jour dans le calendrier';refreshSlots();thanks(recap,d.email.trim())}
+    else failScreen();
+  };
+  const tm=setTimeout(()=>finish(true),7000);
+  const ctl=typeof AbortController==='function'?new AbortController():null;
+  fetch('https://formsubmit.co/ajax/'+FORM_TO,{method:'POST',keepalive:true,signal:ctl?ctl.signal:undefined,headers:{'Content-Type':'application/json','Accept':'application/json'},
+    body:JSON.stringify({name:d.name.trim(),email:d.email.trim(),organisation:(d.org||'').trim()||'-',proposition:quand,duree:d.dur,format:d.mode,lieu_ou_lien:where,message:(d.message||'').trim()||'-',
       _subject:'Réservation d’entretien · '+quand+' · '+d.name.trim(),_cc:d.email.trim(),_template:'table',_captcha:'false'})})
    .then(r=>r.json()).then(j=>{
-     if(j&&(j.success===true||j.success==='true')){BUSY.push({date:calSel,start:d.time,end:fmt(mins(d.time)+durMin(d.dur))});const nm='';f.reset();drawExt();const dd=calSel;calSel='';drawCal();$('#csel').classList.remove('ok');$('#csel').textContent='Choisissez un jour dans le calendrier';refreshSlots();st.className='';st.textContent='';thanks(nm,quand,d.email.trim())}
+     if(j&&(j.success===true||j.success==='true')){if(!over)finish(true)}
      else throw new Error('refus');
-   }).catch(()=>{st.className='err';st.textContent='L’envoi automatique a échoué. Écrivez directement à '+SOCIAL.email2+' ou '+mail()+'.'})
-   .finally(()=>{b.disabled=false});
+   }).catch(()=>{if(over){failScreen()}else finish(false)});
 }
-
+function loadingScreen(){
+  const o=document.createElement('div');o.className='ldg';o.setAttribute('role','alertdialog');o.setAttribute('aria-live','assertive');o.setAttribute('aria-label','Envoi de votre réservation');
+  o.innerHTML='<div class="ldgbox"><div class="ldgring"><i></i></div><h2>Je réserve votre créneau…</h2><p class="ldgbig">Cela ne prendra que quelques secondes.</p><div class="ldgbar"><b></b></div><p class="ldgs">Merci de ne pas fermer cette page.</p></div>';
+  document.body.appendChild(o);return o;
+}
+function failScreen(){
+  document.querySelectorAll('.ldg,.thx').forEach(x=>x.remove());
+  const o=document.createElement('div');o.className='thx fail';o.setAttribute('role','alertdialog');
+  o.innerHTML='<div class="thxbox"><h2>Votre demande n’a pas pu partir</h2><p class="thxp">Rien n’est perdu : écrivez-moi directement.</p><p class="thxs">Envoyez-moi le jour et l’heure souhaités à <b>'+SOCIAL.email2+'</b> ou <b>'+mail()+'</b>, je vous réponds rapidement.</p><button class="btn gold" type="button">Fermer</button></div>';
+  document.body.appendChild(o);o.querySelector('button').onclick=()=>o.remove();
+}
 const fmt=m=>String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');
-function thanks(nm,quand,mail){
+function thanks(r,mail){
   const o=document.createElement('div');o.className='thx';o.setAttribute('role','dialog');o.setAttribute('aria-modal','true');
-  let conf='';for(let i=0;i<28;i++){const a=i/28*360,dist=90+Math.random()*110;conf+=`<i style="--x:${(Math.cos(a*Math.PI/180)*dist).toFixed(0)}px;--y:${(Math.sin(a*Math.PI/180)*dist).toFixed(0)}px;--r:${(Math.random()*540-270).toFixed(0)}deg;--dl:${(Math.random()*.25).toFixed(2)}s;--c:${['#c9a45c','#fff','#7fb2ff','#9fe3b0'][i%4]}"></i>`}
+  const esc=s=>String(s).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+  let conf='';for(let i=0;i<36;i++){const a=i/36*360,dist=110+Math.random()*180;conf+=`<i style="--x:${(Math.cos(a*Math.PI/180)*dist).toFixed(0)}px;--y:${(Math.sin(a*Math.PI/180)*dist).toFixed(0)}px;--r:${(Math.random()*540-270).toFixed(0)}deg;--dl:${(Math.random()*.25).toFixed(2)}s;--c:${['#c9a45c','#fff','#7fb2ff','#9fe3b0'][i%4]}"></i>`}
   o.innerHTML=`<div class="thxbox"><div class="thxc">${conf}<svg viewBox="0 0 52 52" aria-hidden="true"><circle cx="26" cy="26" r="24"/><path d="M15 27l8 8 15-17"/></svg></div>
-  <h2>Merci !</h2><p class="thxp">Hâte de vous rencontrer.</p><p class="thxd">${quand}</p><p class="thxs">Une copie de votre réservation arrive à <b>${mail.replace(/</g,'&lt;')}</b>.</p>
-  <button class="btn gold" type="button">Fermer</button></div>`;
-  document.body.appendChild(o);const close=()=>o.remove();o.querySelector('button').onclick=close;o.addEventListener('click',e=>{if(e.target===o)close()});
-  setTimeout(()=>{const b=o.querySelector('button');b&&b.focus()},50);
+  <h2>Merci, votre créneau est réservé !</h2>
+  <p class="thxp">Hâte de vous rencontrer.</p>
+  <div class="thxr"><b>${esc(r.quand)}</b><span>${esc(r.dur)} · ${esc(r.mode)}</span><span>${esc(r.where)}</span></div>
+  <p class="thxs">Vous recevez à l’instant une copie de tous les détails à <b>${esc(mail)}</b>. Pensez à regarder vos courriers indésirables si elle tarde.</p>
+  <div class="thxb"><a class="btn gold" href="#/">Retour à l’accueil</a><a class="btn ghost" href="#/c/realisations">Voir mes réalisations</a></div></div>`;
+  document.body.appendChild(o);const close=()=>o.remove();o.querySelectorAll('a').forEach(a=>a.addEventListener('click',close));
+  addEventListener('keydown',function k(e){if(e.key==='Escape'){close();removeEventListener('keydown',k)}});
 }
-
 function drawExt(){
   const f=$('#cf');if(!f)return;const m=f.querySelector('[name=mode]').value,box=$('#cext');
   box.innerHTML=m==='Visioconférence'
