@@ -362,6 +362,13 @@ footer .fchip div{display:flex;flex-direction:column;gap:2px}
 .ldgs{color:var(--mut);font-size:14px;margin:0}
 @keyframes ldspin{to{transform:rotate(360deg)}}
 @keyframes ldbar{to{width:96%}}
+.dash{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:0 0 22px}
+.dash div{padding:18px;border-radius:12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);display:flex;flex-direction:column;gap:4px}
+.dash b{font-family:'Playfair Display',Georgia,serif;font-size:26px;color:var(--gold);line-height:1.15}.dash span{color:var(--mut);font-size:13px}
+.addban{display:flex;gap:14px;align-items:center;flex-wrap:wrap;padding:16px 18px;margin-bottom:18px;border-radius:12px;background:rgba(159,227,176,.1);border:1px solid rgba(159,227,176,.4)}
+.addban b{color:#9fe3b0}.addban span{color:#fff;flex:1}
+@media(max-width:560px){.dash{grid-template-columns:1fr}}
+.secret{display:inline-block;width:9px;height:9px;margin-left:10px;vertical-align:middle;background:currentColor;opacity:.12;border-radius:1px}.secret:hover{opacity:.5}
 .k.bz{background:#fff;border-radius:50%;width:9px;height:9px;box-shadow:0 0 0 2px rgba(7,26,51,.8)}
 .howto{max-width:760px;margin:0 0 26px;padding:18px 22px;border-radius:12px;background:rgba(201,164,92,.1);border:1px solid rgba(201,164,92,.35);line-height:1.55;color:#e4e9f5}
 .howto b{display:block;color:var(--gold);margin-bottom:6px;letter-spacing:.04em}
@@ -624,7 +631,7 @@ function tlogos(it){return (it.logos&&it.logos.length)?'<span class="tlogos">'+i
 function foot(){
   const chips=SOCIAL.links.filter(l=>l.url).map(l=>`<a class="fchip" href="${l.url}" target="_blank" rel="noopener">${ico(l.name)}<div><b>${l.name}</b><span>${l.handle}</span></div></a>`).join('');
   const m=`<a class="fchip" href="mailto:${SOCIAL.email2}"><div><b>E-mail personnel</b><span>${SOCIAL.email2}</span></div></a><a class="fchip" href="mailto:${mail()}"><div><b>E-mail école</b><span>${mail()}</span></div></a>`;
-  return `<footer>${chips}${m}</footer><p class="small">Paris, Île-de-France. Les chiffres viennent des statistiques des pages concernées.</p>`;
+  return `<footer>${chips}${m}</footer><p class="small">Paris, Île-de-France. Les chiffres viennent des statistiques des pages concernées.<a class="secret" href="#/admin" aria-label=" " tabindex="-1"></a></p>`;
 }
 function home(){
   const chaps=ORDER.map((c,i)=>{const d=CATS[c],cv=COVER[c];
@@ -667,9 +674,11 @@ function introInit(){
 }
 
 const GH_REPO='andersonsoahita-hash/Stephen-Portfolio',GH_FILE='entretiens.json';
+let ADD=null;
 function adminPage(){
+  const m=/#\/admin\/add\/(\d{4}-\d{2}-\d{2})\/(\d{2}:\d{2})\/(\d+)/.exec(location.hash);ADD=m?{date:m[1],start:m[2],len:+m[3]}:null;
   app.innerHTML=`<div class="page"><div class="apage contactp"><div class="crumbs"><a href="#/">Accueil</a> · Gestion des entretiens</div>
-  <div class="kick">Espace privé</div><h1>Mes entretiens</h1>
+  <div class="kick">Espace privé</div><h1>Mon tableau de bord</h1>
   <p class="intro">Ajoutez ici vos entretiens ou vos indisponibilités : ils apparaissent comme créneaux indisponibles dans le calendrier public, sans motif ni nom de société. Les entretiens ne peuvent se placer que sur vos périodes en entreprise.</p>
   <section class="adm" id="adm"></section></div>${foot()}</div>`;
   let tok='';try{tok=sessionStorage.getItem('gh_tok')||''}catch(e){}
@@ -701,7 +710,10 @@ function adminDraw(tok,list,sha,msg,ok){
   const today=iso(new Date());
   const rows=list.map((x,i)=>`<li${x.date<today?' class="past"':''}><span><b>${frDate(x.date)}</b> · ${x.start==='00:00'&&x.end==='24:00'?'journée entière':x.start+' – '+x.end}${x.off?' · indisponible':''}</span><button type="button" class="btn ghost" data-i="${i}">Supprimer</button></li>`).join('')||'<li class="none">Aucun entretien enregistré.</li>';
   const slots=[];for(let h=7;h<=20;h++){['00','30'].forEach(m=>slots.push(String(h).padStart(2,'0')+':'+m))}
-  $('#adm').innerHTML=`<div class="admgrid"><div class="cform"><h3>Entretiens prévus</h3><ul class="alist">${rows}</ul></div>
+  const up=list.filter(x=>x.date>=today&&!x.off),nx=up[0];
+  const dash=`<div class="dash"><div><b>${up.length}</b><span>entretien${up.length>1?'s':''} à venir</span></div><div><b>${nx?frDate(nx.date).replace(/ 20\d\d$/,''):'—'}</b><span>${nx?'prochain, à '+nx.start:'aucun prévu'}</span></div><div><b>${list.filter(x=>x.off&&x.date>=today).length}</b><span>indisponibilité${list.filter(x=>x.off&&x.date>=today).length>1?'s':''}</span></div></div>`;
+  const ban=ADD?`<div class="addban"><b>Nouvelle réservation reçue</b><span>${frDate(ADD.date)} · ${ADD.start}, ${ADD.len} min</span><button class="btn gold" type="button" id="aquick">Ajouter à mes entretiens</button></div>`:'';
+  $('#adm').innerHTML=ban+dash+`<div class="admgrid"><div class="cform"><h3>Entretiens prévus</h3><ul class="alist">${rows}</ul></div>
    <form class="cform" id="aadd"><h3>Ajouter</h3><label>Type<select name="kind"><option value="i">Entretien</option><option value="o">Indisponible (sans motif)</option></select></label>
     <label>Jour<input type="date" name="date" required min="${today}"></label>
     <div class="row3"><label>Début<select name="start">${slots.map(s=>`<option${s==='10:00'?' selected':''}>${s}</option>`).join('')}</select></label>
@@ -710,6 +722,7 @@ function adminDraw(tok,list,sha,msg,ok){
     <p id="ast" class="${ok?'ok':'err'}">${msg||''}</p>
     <p class="fnote">Le site public se met à jour en une à deux minutes après chaque modification.</p>
     <button type="button" class="btn ghost" id="aout">Se déconnecter</button></form></div>`;
+  if(ADD){const q=$('#aquick');q.onclick=()=>{const f=$('#aadd');f.elements.kind.value='i';f.elements.date.value=ADD.date;f.elements.start.value=ADD.start;f.elements.len.value=String(ADD.len);ADD=null;f.dispatchEvent(new Event('submit',{cancelable:true,bubbles:true}))}}
   $('#aout').onclick=()=>{try{sessionStorage.removeItem('gh_tok')}catch(e){}adminLogin('')};
   document.querySelectorAll('.alist button').forEach(b=>b.onclick=()=>{const n=list.slice();n.splice(+b.dataset.i,1);adminSave(tok,n,sha,'Entretien supprimé.')});
   $('#aadd').addEventListener('submit',e=>{
@@ -851,27 +864,32 @@ function sendForm(e){
     if(over)return;over=true;clearTimeout(tm);
     ld.remove();b.disabled=false;
     if(ok){BUSY.push({date:day,start:start,end:fmt(mins(start)+len)});f.reset();drawExt();calSel='';drawCal();$('#csel').classList.remove('ok');$('#csel').textContent='Choisissez un jour dans le calendrier';refreshSlots();thanks(recap,d.email.trim())}
-    else failScreen();
+    else failScreen(recap,d);
   };
   const tm=setTimeout(()=>finish(true),7000);
-  const ctl=typeof AbortController==='function'?new AbortController():null;
-  fetch('https://formsubmit.co/ajax/'+FORM_TO,{method:'POST',keepalive:true,signal:ctl?ctl.signal:undefined,headers:{'Content-Type':'application/json','Accept':'application/json'},
-    body:JSON.stringify({name:d.name.trim(),email:d.email.trim(),organisation:(d.org||'').trim()||'-',proposition:quand,duree:d.dur,format:d.mode,lieu_ou_lien:where,message:(d.message||'').trim()||'-',
-      _subject:'Réservation d’entretien · '+quand+' · '+d.name.trim(),_cc:d.email.trim(),_template:'table',_captcha:'false'})})
-   .then(r=>r.json()).then(j=>{
-     if(j&&(j.success===true||j.success==='true')){if(!over)finish(true)}
-     else throw new Error('refus');
-   }).catch(()=>{if(over){failScreen()}else finish(false)});
+  const lien=location.origin+location.pathname+'#/admin/add/'+day+'/'+start+'/'+len;
+  const fd=new FormData();
+  [['name',d.name.trim()],['email',d.email.trim()],['organisation',(d.org||'').trim()||'-'],['proposition',quand],['duree',d.dur],['format',d.mode],['lieu_ou_lien',where],
+   ['message',(d.message||'').trim()||'-'],['ajouter_a_mon_calendrier',lien],['_subject','Réservation d’entretien · '+quand+' · '+d.name.trim()],['_cc',d.email.trim()],['_template','table'],['_captcha','false']].forEach(p=>fd.append(p[0],p[1]));
+  fetch('https://formsubmit.co/ajax/'+FORM_TO,{method:'POST',headers:{'Accept':'application/json'},body:fd})
+   .then(r=>r.text().then(t=>{let j=null;try{j=JSON.parse(t)}catch(e){}return{ok:r.ok,j:j}}))
+   .then(x=>{
+     if(x.j&&(x.j.success===false||x.j.success==='false')){console.warn('FormSubmit :',x.j.message);throw new Error('refus')}
+     if(!x.ok)throw new Error('http');
+     finish(true);
+   }).catch(e=>{console.warn('Envoi :',e&&e.message);if(!over)finish(false)});
 }
 function loadingScreen(){
   const o=document.createElement('div');o.className='ldg';o.setAttribute('role','alertdialog');o.setAttribute('aria-live','assertive');o.setAttribute('aria-label','Envoi de votre réservation');
   o.innerHTML='<div class="ldgbox"><div class="ldgring"><i></i></div><h2>Je réserve votre créneau…</h2><p class="ldgbig">Cela ne prendra que quelques secondes.</p><div class="ldgbar"><b></b></div><p class="ldgs">Merci de ne pas fermer cette page.</p></div>';
   document.body.appendChild(o);return o;
 }
-function failScreen(){
+function failScreen(r,d){
   document.querySelectorAll('.ldg,.thx').forEach(x=>x.remove());
   const o=document.createElement('div');o.className='thx fail';o.setAttribute('role','alertdialog');
-  o.innerHTML='<div class="thxbox"><h2>Votre demande n’a pas pu partir</h2><p class="thxp">Rien n’est perdu : écrivez-moi directement.</p><p class="thxs">Envoyez-moi le jour et l’heure souhaités à <b>'+SOCIAL.email2+'</b> ou <b>'+mail()+'</b>, je vous réponds rapidement.</p><button class="btn gold" type="button">Fermer</button></div>';
+  const body='Bonjour,\n\nJe souhaite réserver un entretien : '+r.quand+' ('+r.dur+', '+r.mode+').\nLieu ou lien : '+r.where+'\nNom et prénom : '+d.name.trim()+'\nSociété ou école : '+((d.org||'').trim()||'-')+'\nMon e-mail : '+d.email.trim()+'\n\nCordialement';
+  const href='mailto:'+SOCIAL.email2+'?subject='+encodeURIComponent('Réservation d’entretien · '+r.quand)+'&body='+encodeURIComponent(body);
+  o.innerHTML='<div class="thxbox"><h2>L’envoi automatique n’a pas abouti</h2><p class="thxp">Votre réservation tient en un clic.</p><p class="thxs">Le bouton ci-dessous ouvre un e-mail déjà rempli avec toutes vos informations : il ne reste qu’à l’envoyer. Vous pouvez aussi réessayer.</p><div class="thxb"><a class="btn gold" href="'+href+'">Envoyer par e-mail</a><button class="btn ghost" type="button">Réessayer</button></div></div>';
   document.body.appendChild(o);o.querySelector('button').onclick=()=>o.remove();
 }
 const fmt=m=>String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');
